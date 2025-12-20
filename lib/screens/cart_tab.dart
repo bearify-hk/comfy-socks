@@ -1,0 +1,586 @@
+// cart_tab.dart
+import 'dart:developer';
+
+import 'package:comfy_socks/extension.dart';
+import 'package:comfy_socks/screens/checkout_webview.dart';
+import 'package:comfy_socks/services/cart_service.dart';
+import 'package:flutter/material.dart';
+import 'package:shopify_flutter/mixins/src/shopify_error.dart';
+import 'package:shopify_flutter/models/src/cart/inputs/attribute_input/attribute_input.dart';
+import 'package:shopify_flutter/shopify_flutter.dart';
+
+void logCartInfo(Cart cart) {
+  log('log => cart id: ${cart.id}');
+  log('log => cart attributes: ${cart.attributes}');
+  for (final line in cart.lines) {
+    log('log => line attributes: ${line.attributes}');
+  }
+}
+
+class CartTab extends StatefulWidget {
+  const CartTab({super.key});
+
+  @override
+  State<CartTab> createState() => _CartTabState();
+}
+
+class _CartTabState extends State<CartTab> {
+  final ShopifyStore shopifyStore = ShopifyStore.instance;
+  final CartService cartService = CartService.instance;
+
+  List<Product> products = [];
+  bool isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    cartService.addListener(_onCartUpdate);
+    init();
+  }
+
+  @override
+  void dispose() {
+    cartService.removeListener(_onCartUpdate);
+    super.dispose();
+  }
+
+  void _onCartUpdate() {
+    if (mounted) setState(() {});
+  }
+
+  void init() {
+    initializeCart();
+  }
+
+  void initializeCart() async {
+    // Only create cart if one doesn't exist
+    if (cartService.cart == null) {
+      setState(() {
+        isLoading = true;
+      });
+      try {
+        String? accessToken =
+            await ShopifyAuth.instance.currentCustomerAccessToken;
+        await cartService.createCart(
+          email: (await ShopifyAuth.instance.currentUser())?.email,
+          accessToken: accessToken,
+        );
+        if (cartService.cart != null) {
+          logCartInfo(cartService.cart!);
+        }
+      } on ShopifyException catch (error) {
+        log('createCart ShopifyException: $error');
+        if (!mounted) return;
+        /*
+        context.showSnackBar(
+          error.errors?[0]["message"] ?? 'Error creating cart',
+        );
+        */
+      } catch (error) {
+        log('createCart Error: $error');
+      } finally {
+        if (mounted) {
+          setState(() {
+            isLoading = false;
+          });
+        }
+      }
+    }
+  }
+
+  void refreshCart() async {
+    if (cartService.cartId == null) return;
+    try {
+      await cartService.fetchCart(cartService.cartId!);
+      if (cartService.cart != null) {
+        logCartInfo(cartService.cart!);
+      }
+    } on ShopifyException catch (error) {
+      log('refreshCart ShopifyException: $error');
+      if (!mounted) return;
+      context.showSnackBar(
+        error.errors?[0]["message"] ?? 'Error retrieving cart',
+      );
+    } catch (error) {
+      log('refreshCart Error: $error');
+    }
+  }
+
+  void addLineItemToCart(Product product) async {
+    try {
+      await cartService.addToCart(
+        variantId: product.productVariants.first.id,
+        quantity: 1,
+        attributes: [
+          AttributeInput(
+            key: 'color',
+            value: 'red',
+          ),
+        ],
+      );
+      if (cartService.cart != null) {
+        logCartInfo(cartService.cart!);
+      }
+      if (!mounted) return;
+      context.showSnackBar('Added ${product.title} to cart');
+    } on ShopifyException catch (error) {
+      log('addLineItemToCart ShopifyException: $error');
+      if (!mounted) return;
+      context.showSnackBar(
+        error.errors?[0]["message"] ?? 'Error adding item to cart',
+      );
+    } catch (error) {
+      log('addLineItemToCart Error: $error');
+    }
+  }
+
+  void onCartItemUpdate() async {
+    refreshCart();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cart = cartService.cart;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Cart'),
+        actions: [
+          if (cart != null)
+            IconButton(
+              onPressed: refreshCart,
+              icon: const Icon(Icons.refresh),
+            ),
+          if (cart != null)
+            IconButton(
+              onPressed: () {
+                showModalBottomSheet(
+                  context: context,
+                  builder: (context) => BuyerIndetity(
+                    cart: cart,
+                    onUpdate: onCartItemUpdate,
+                  ),
+                );
+              },
+              icon: const Icon(Icons.person),
+            ),
+          IconButton(
+            onPressed: () {
+              if (cart == null) {
+                context.showSnackBar('Cart not initialized');
+                return;
+              }
+              showModalBottomSheet(
+                context: context,
+                builder: (context) => CartInfo(
+                  cart: cart,
+                  onCartItemUpdate: onCartItemUpdate,
+                ),
+              );
+            },
+            icon: Badge.count(
+              count: cartService.itemCount,
+              child: const Icon(Icons.shopping_cart),
+            ),
+          ),
+        ],
+      ),
+      body: isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.all(8),
+                child: Column(
+                  children: [
+                    if (cart == null)
+                      const Padding(
+                        padding: EdgeInsets.all(16.0),
+                        child: Text('Initializing cart...'),
+                      ),
+                    ...products.map(
+                      (product) => ListTile(
+                        title: Text(product.title),
+                        subtitle: Text(product.description ?? ''),
+                        trailing: IconButton(
+                          onPressed: cart != null
+                              ? () => addLineItemToCart(product)
+                              : null,
+                          icon: const Icon(Icons.add_shopping_cart),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+    );
+  }
+}
+
+class CartInfo extends StatefulWidget {
+  final Cart cart;
+  final VoidCallback? onCartItemUpdate;
+  const CartInfo({super.key, required this.cart, this.onCartItemUpdate});
+
+  @override
+  State<CartInfo> createState() => _CartInfoState();
+}
+
+class _CartInfoState extends State<CartInfo> {
+  final CartService cartService = CartService.instance;
+  final noteCtrl = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    cartService.addListener(_onCartUpdate);
+    noteCtrl.text = cartService.cart?.note ?? '';
+    if (cartService.cart != null) {
+      logCartInfo(cartService.cart!);
+    }
+  }
+
+  @override
+  void dispose() {
+    cartService.removeListener(_onCartUpdate);
+    noteCtrl.dispose();
+    super.dispose();
+  }
+
+  void _onCartUpdate() {
+    if (mounted) setState(() {});
+  }
+
+  Cart? get cart => cartService.cart;
+
+  void removeLineItemFromCart(String lineId) async {
+    try {
+      if (!lineId.startsWith('gid://shopify/CartLine/')) {
+        context.showSnackBar('Invalid lineId');
+        log('Invalid lineId: $lineId');
+        return;
+      }
+      await cartService.removeFromCart(lineId);
+      widget.onCartItemUpdate?.call();
+      if (!mounted) return;
+      context.showSnackBar('Removed item from cart');
+    } on ShopifyException catch (error) {
+      log('removeLineItemFromCart ShopifyException: $error');
+      if (!mounted) return;
+      context.showSnackBar(
+        error.errors?[0]["message"] ?? 'Error removing item from cart',
+      );
+    } catch (error) {
+      log('removeLineItemFromCart Error: $error');
+    }
+  }
+
+  void onCartItemQuantityUpdate(Line line, {bool increment = true}) async {
+    try {
+      int quantity = line.quantity ?? 0;
+      if (!increment && quantity <= 1) {
+        context.showSnackBar('Cannot reduce quantity below 1');
+        return;
+      }
+      quantity = increment ? quantity + 1 : quantity - 1;
+
+      await cartService.updateQuantity(
+        "${line.id}",
+        "${line.variantId}",
+        quantity,
+      );
+      widget.onCartItemUpdate?.call();
+      if (!mounted) return;
+      context.showSnackBar('Updated item in cart');
+    } on ShopifyException catch (error) {
+      log('onCartItemQuantityUpdate ShopifyException: ${error.errors?[0]["message"]}');
+      if (!mounted) return;
+      context.showSnackBar(
+        error.errors?[0]["message"] ?? 'Error updating cart',
+      );
+    } catch (error) {
+      log('onCartItemQuantityUpdate Error: $error');
+    }
+  }
+
+  void updateCartNote() async {
+    try {
+      await cartService.updateNote(noteCtrl.text.trim());
+      widget.onCartItemUpdate?.call();
+      if (!mounted) return;
+      context.showSnackBar('Updated cart note');
+    } catch (error) {
+      log('updateCartNote Error: $error');
+    }
+  }
+
+  void onCheckoutTap() async {
+    final checkoutUrl = cart?.checkoutUrl;
+    log('checkoutUrl: $checkoutUrl');
+    if (checkoutUrl == null) {
+      context.showSnackBar('Invalid checkout url');
+      return;
+    }
+    final status = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => WebViewCheckout(checkoutUrl: checkoutUrl),
+      ),
+    );
+    if (status != null && status) {
+      if (!mounted) return;
+      context.showSnackBar('Checkout Success');
+      widget.onCartItemUpdate?.call();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (cart == null) {
+      return const SizedBox(
+        height: 200,
+        child: Center(child: Text('Cart not available')),
+      );
+    }
+
+    return SizedBox(
+      height: MediaQuery.of(context).size.height * 0.8,
+      width: double.maxFinite,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Cart: ${cart!.lines.length} items',
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ),
+                IconButton(
+                  onPressed: onCheckoutTap,
+                  icon: const Icon(Icons.logout),
+                ),
+              ],
+            ),
+          ),
+          const Divider(),
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextFormField(
+                    controller: noteCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Note',
+                    ),
+                  ),
+                ),
+                IconButton(
+                  onPressed: updateCartNote,
+                  icon: const Icon(Icons.save),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: SingleChildScrollView(
+              child: Column(
+                children: cart!.lines.map(
+                  (line) {
+                    final merchandise = line.merchandise;
+                    if (merchandise == null) {
+                      return const SizedBox();
+                    }
+                    return ListTile(
+                      leading: Text('${line.quantity}x'),
+                      title: Text(
+                        merchandise.product?.title ?? merchandise.title,
+                      ),
+                      subtitle: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Price: ${merchandise.price.amount} ${merchandise.price.currencyCode}',
+                          ),
+                          Row(
+                            children: [
+                              IconButton(
+                                onPressed: () =>
+                                    onCartItemQuantityUpdate(line),
+                                icon: const Icon(Icons.add),
+                              ),
+                              Text('${line.quantity}'),
+                              IconButton(
+                                onPressed: () => onCartItemQuantityUpdate(
+                                  line,
+                                  increment: false,
+                                ),
+                                icon: const Icon(Icons.remove),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                      trailing: IconButton(
+                        onPressed: () => removeLineItemFromCart("${line.id}"),
+                        icon: const Icon(Icons.delete),
+                      ),
+                    );
+                  },
+                ).toList(),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class BuyerIndetity extends StatefulWidget {
+  final Cart cart;
+  final VoidCallback? onUpdate;
+  const BuyerIndetity({super.key, required this.cart, this.onUpdate});
+
+  @override
+  State<BuyerIndetity> createState() => _BuyerIndetityState();
+}
+
+class _BuyerIndetityState extends State<BuyerIndetity> {
+  final CartService cartService = CartService.instance;
+  CartBuyerIdentity? buyerIdentity;
+
+  @override
+  void initState() {
+    super.initState();
+    cartService.addListener(_onCartUpdate);
+    buyerIdentity = cartService.cart?.buyerIdentity;
+  }
+
+  @override
+  void dispose() {
+    cartService.removeListener(_onCartUpdate);
+    super.dispose();
+  }
+
+  void _onCartUpdate() {
+    if (mounted) {
+      setState(() {
+        buyerIdentity = cartService.cart?.buyerIdentity;
+      });
+    }
+  }
+
+  void updateBuyerIdentity() async {
+    try {
+      await cartService.updateBuyerIdentity(
+        CartBuyerIdentityInput(
+          email: '',
+          phone: '',
+          countryCode: buyerIdentity?.countryCode,
+          deliveryAddressPreferences: [
+            DeliveryAddressInput(
+              deliveryAddress: MailingAddressInput(
+                address1: '11 Hinkler Avenue',
+                city: 'Sydney',
+                country: 'Australia',
+                firstName: 'Anderson',
+                lastName: 'Fetter',
+                phone: '044444444',
+                zip: '2229',
+              ),
+            ),
+          ],
+        ),
+      );
+      widget.onUpdate?.call();
+      if (!mounted) return;
+      context.showSnackBar('Updated buyer identity');
+    } on ShopifyException catch (error) {
+      log('updateBuyerIdentity ShopifyException: $error');
+      if (!mounted) return;
+      context.showSnackBar(
+        error.errors?[0]["message"] ?? 'Error updating buyer identity',
+      );
+    } catch (error) {
+      log('updateBuyerIdentity Error: $error');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.maxFinite,
+      height: MediaQuery.of(context).size.height * 0.8,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Text(
+              'Buyer Identity',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+          ),
+          const Divider(),
+          Expanded(
+            child: SingleChildScrollView(
+              child: Column(
+                children: [
+                  ListTile(
+                    title: const Text('Email'),
+                    subtitle: Text(buyerIdentity?.email ?? 'Not set'),
+                    trailing: IconButton(
+                      icon: const Icon(Icons.refresh),
+                      onPressed: updateBuyerIdentity,
+                    ),
+                  ),
+                  ListTile(
+                    title: const Text('Phone'),
+                    subtitle: Text(buyerIdentity?.phone ?? 'Not set'),
+                  ),
+                  ListTile(
+                    title: const Text('Country Code'),
+                    subtitle: Text(buyerIdentity?.countryCode ?? 'Not set'),
+                  ),
+                  ExpansionTile(
+                    initiallyExpanded: true,
+                    title: const Text('Delivery Address Preferences'),
+                    children: [
+                      if (buyerIdentity?.deliveryAddressPreferences?.isEmpty ??
+                          true)
+                        const ListTile(
+                          title: Text('No delivery address preferences'),
+                        ),
+                      ...(buyerIdentity?.deliveryAddressPreferences ?? []).map(
+                        (mailingAddress) => ListTile(
+                          title: Text(
+                              '${mailingAddress?.firstName} ${mailingAddress?.lastName}'),
+                          subtitle: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('${mailingAddress?.address1}'),
+                              Text(
+                                  '${mailingAddress?.city}, ${mailingAddress?.country}'),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}

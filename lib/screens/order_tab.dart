@@ -1,0 +1,106 @@
+import 'package:flutter/material.dart';
+import 'package:shopify_flutter/shopify_flutter.dart';
+
+class OrderTab extends StatefulWidget {
+  const OrderTab({super.key});
+
+  @override
+  State<OrderTab> createState() => _OrderTabState();
+}
+
+class _OrderTabState extends State<OrderTab> {
+  List<Order> orders = [];
+  bool isLoggedIn = false;
+
+  @override
+  void initState() {
+    super.initState();
+    init();
+  }
+
+  Future<void> init() async {
+    await checkLoggedIn();
+    getOrders();
+  }
+
+  Future<void> checkLoggedIn() async {
+    final accessToken = await ShopifyAuth.instance.currentCustomerAccessToken;
+    setState(() {
+      isLoggedIn = accessToken != null;
+    });
+  }
+
+  Future<void> getOrders() async {
+    if (isLoggedIn) {
+      final accessToken = await ShopifyAuth.instance.currentCustomerAccessToken;
+      final allOrders = await ShopifyOrder.instance.getAllOrders(
+        accessToken!,
+      );
+      setState(() {
+        orders = allOrders ?? [];
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Orders (${orders.length})'),
+        actions: [
+          IconButton(
+            onPressed: () => init(),
+            icon: const Icon(Icons.refresh),
+          ),
+        ],
+      ),
+      body: !isLoggedIn
+          ? Center(
+              child: TextButton(
+                onPressed: () => init(),
+                child: const Text('Login first and try again'),
+              ),
+            )
+          : orders.isEmpty
+              ? Center(
+                  child: TextButton(
+                    onPressed: () => init(),
+                    child: const Text('No orders found. Try again'),
+                  ),
+                )
+              : ListView.builder(
+                  itemCount: orders.length,
+                  itemBuilder: (context, index) {
+                    final order = orders[index];
+                    return ListTile(
+                      title: Text(order.name),
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          ...order.lineItems.lineItemOrderList
+                              .map((e) => ListTile(
+                                    title: Text(e.title),
+                                    subtitle: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(
+                                          "Price: ${e.discountedTotalPrice.formattedPrice}",
+                                        ),
+                                        Text('Quantity: ${e.currentQuantity}'),
+                                        Text(
+                                            'Original Price: ${e.originalTotalPrice.formattedPrice}'),
+                                        Text("Product ID: ${e.productId}")
+                                      ],
+                                    ),
+                                  ))
+                        ],
+                      ),
+                    );
+                  },
+                ),
+    );
+  }
+}

@@ -1,0 +1,778 @@
+import 'dart:developer';
+import 'dart:math' hide log;
+
+import '../extension.dart';
+import 'checkout_webview.dart';
+import 'package:flutter/material.dart';
+import 'package:shopify_flutter/mixins/src/shopify_error.dart';
+import 'package:shopify_flutter/models/src/cart/inputs/attribute_input/attribute_input.dart';
+import 'package:shopify_flutter/shopify_flutter.dart';
+
+void logCartInfo(Cart cart) {
+  log('log => cart id: ${cart.id}');
+  log('log => cart attributes: ${cart.attributes}');
+  for (final line in cart.lines) {
+    log('log => line attributes: ${line.attributes}');
+  }
+}
+
+class CartTab extends StatefulWidget {
+  const CartTab({super.key});
+
+  @override
+  State<CartTab> createState() => _CartTabState();
+}
+
+class _CartTabState extends State<CartTab> {
+  static const Color primaryOrange = Color(0xFFFF6B00);
+  static const Color lightOrange = Color(0xFFFFF3E0);
+
+  final ShopifyStore shopifyStore = ShopifyStore.instance;
+  final ShopifyCart shopifyCart = ShopifyCart.instance;
+
+  Cart? cart;
+  List<Product> products = [];
+
+  @override
+  void initState() {
+    super.initState();
+    init();
+  }
+
+  void init() {
+    createCart();
+    getNProducts();
+  }
+
+  void createCart() async {
+    String? accessToken = await ShopifyAuth.instance.currentCustomerAccessToken;
+    final CartInput cartInput = CartInput(
+      buyerIdentity: CartBuyerIdentityInput(
+        email: 'user@example.com',
+        customerAccessToken: accessToken,
+      ),
+      attributes: [
+        AttributeInput(
+          key: 'color',
+          value: 'Blue',
+        ),
+      ],
+    );
+    try {
+      cart = await shopifyCart.createCart(cartInput);
+      setState(() {});
+      logCartInfo(cart!);
+    } on ShopifyException catch (error) {
+      log('createCart ShopifyException: $error');
+      if (!mounted) return;
+      context.showSnackBar(
+        error.errors?[0]["message"] ?? 'Error creating cart',
+      );
+    } catch (error) {
+      log('createCart Error: $error');
+    }
+  }
+
+  void getCartById(String cartId) async {
+    try {
+      final cartResponse = await shopifyCart.getCartById(cartId);
+      setState(() {
+        cart = cartResponse;
+      });
+      logCartInfo(cart!);
+    } on ShopifyException catch (error) {
+      log('getCartById ShopifyException: $error');
+      if (!mounted) return;
+      context.showSnackBar(
+        error.errors?[0]["message"] ?? 'Error retrieving cart',
+      );
+    } catch (error) {
+      log('getCartById Error: $error');
+    }
+  }
+
+  void getNProducts() {
+    shopifyStore.getNProducts(10).then((value) {
+      setState(() {
+        products = value ?? [];
+      });
+    });
+  }
+
+  void addLineItemToCart(Product product) async {
+    if (cart == null) return;
+    
+    final cartLineInput = CartLineUpdateInput(
+      quantity: 1,
+      merchandiseId: product.productVariants.first.id,
+      attributes: [
+        AttributeInput(
+          key: 'color',
+          value: 'red',
+        ),
+      ],
+    );
+    try {
+      final updatedCart = await shopifyCart.addLineItemsToCart(
+        cartId: cart!.id,
+        cartLineInputs: [cartLineInput],
+      );
+      setState(() {
+        cart = updatedCart;
+      });
+      logCartInfo(updatedCart);
+      if (!mounted) return;
+      context.showSnackBar('Added ${product.title} to cart');
+    } on ShopifyException catch (error) {
+      log('addLineItemToCart ShopifyException: $error');
+      if (!mounted) return;
+      context.showSnackBar(
+        error.errors?[0]["message"] ?? 'Error adding item to cart',
+      );
+    } catch (error) {
+      log('addLineItemToCart Error: $error');
+    }
+  }
+
+  void onCartItemUpdate() async {
+    if (cart != null) {
+      getCartById(cart!.id);
+    }
+  }
+
+  void _openCart() {
+    if (cart == null) return;
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => CartSheet(
+        cart: cart!,
+        onUpdate: onCartItemUpdate,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        title: const Text(
+          'Shop',
+          style: TextStyle(
+            color: Colors.black87,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        scrolledUnderElevation: 1,
+        actions: [
+          if (cart != null)
+            IconButton(
+              onPressed: () => getCartById(cart!.id),
+              icon: const Icon(Icons.refresh_rounded, color: Colors.black54),
+            ),
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: IconButton(
+              onPressed: _openCart,
+              icon: Badge(
+                label: Text(
+                  '${cart?.lines.length ?? 0}',
+                  style: const TextStyle(color: Colors.white, fontSize: 10),
+                ),
+                backgroundColor: primaryOrange,
+                isLabelVisible: (cart?.lines.length ?? 0) > 0,
+                child: const Icon(
+                  Icons.shopping_bag_outlined,
+                  color: Colors.black87,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+      body: products.isEmpty
+          ? const Center(
+              child: CircularProgressIndicator(color: primaryOrange),
+            )
+          : RefreshIndicator(
+              color: primaryOrange,
+              onRefresh: () async {
+                init();
+              },
+              child: _buildProductList(),
+            ),
+    );
+  }
+
+  Widget _buildProductList() {
+    return ListView.separated(
+      padding: const EdgeInsets.all(16),
+      itemCount: products.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 12),
+      itemBuilder: (context, index) {
+        final product = products[index];
+        final variant = product.productVariants.firstOrNull;
+        final price = variant?.price;
+
+        return Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.grey.shade200),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Container(
+                  width: 60,
+                  height: 60,
+                  decoration: BoxDecoration(
+                    color: lightOrange,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(
+                    Icons.shopping_bag_outlined,
+                    color: primaryOrange,
+                    size: 28,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        product.title,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 15,
+                          color: Colors.black87,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      if (price != null) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          '${price.currencyCode} ${price.amount}',
+                          style: const TextStyle(
+                            color: primaryOrange,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                SizedBox(
+                  width: 44,
+                  height: 44,
+                  child: IconButton(
+                    onPressed: cart == null ? null : () => addLineItemToCart(product),
+                    style: IconButton.styleFrom(
+                      backgroundColor: cart == null ? Colors.grey.shade300 : primaryOrange,
+                      foregroundColor: Colors.white,
+                    ),
+                    icon: const Icon(Icons.add, size: 20),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class CartSheet extends StatefulWidget {
+  final Cart cart;
+  final VoidCallback? onUpdate;
+
+  const CartSheet({
+    super.key,
+    required this.cart,
+    this.onUpdate,
+  });
+
+  @override
+  State<CartSheet> createState() => _CartSheetState();
+}
+
+class _CartSheetState extends State<CartSheet> {
+  static const Color primaryOrange = Color(0xFFFF6B00);
+
+  final ShopifyCart shopifyCart = ShopifyCart.instance;
+  final noteController = TextEditingController();
+
+  late Cart cart;
+
+  @override
+  void initState() {
+    super.initState();
+    cart = widget.cart;
+    noteController.text = cart.note ?? '';
+    logCartInfo(cart);
+  }
+
+  @override
+  void dispose() {
+    noteController.dispose();
+    super.dispose();
+  }
+
+  void removeLineItemFromCart(String lineId) async {
+    try {
+      if (!lineId.startsWith('gid://shopify/CartLine/')) {
+        context.showSnackBar('Invalid lineId');
+        log('Invalid lineId: $lineId');
+        return;
+      }
+      final updatedCart = await shopifyCart.removeLineItemsFromCart(
+        cartId: cart.id,
+        lineIds: [lineId],
+      );
+      setState(() {
+        cart = updatedCart;
+      });
+      widget.onUpdate?.call();
+      if (!mounted) return;
+      context.showSnackBar('Removed item from cart');
+    } on ShopifyException catch (error) {
+      log('removeLineItemFromCart ShopifyException: $error');
+      context.showSnackBar(
+        error.errors?[0]["message"] ?? 'Error removing item from cart',
+      );
+    } catch (error) {
+      log('removeLineItemFromCart Error: $error');
+    }
+  }
+
+  void onCartItemUpdate(Line line, {bool increment = true}) async {
+    try {
+      int quantity = line.quantity ?? 0;
+      if (!increment && quantity == 0) {
+        context.showSnackBar('Cannot reduce quantity below 0');
+        return;
+      }
+      quantity = increment ? quantity + 1 : quantity - 1;
+
+      final cartLineInput = CartLineUpdateInput(
+        id: "${line.id}",
+        quantity: quantity,
+        merchandiseId: "${line.variantId}",
+        attributes: [
+          AttributeInput(
+            key: 'color',
+            value: 'blue',
+          ),
+          AttributeInput(key: 'Misc', value: '1')
+        ],
+      );
+      final updatedCart = await shopifyCart.updateLineItemsInCart(
+        cartId: cart.id,
+        cartLineInputs: [cartLineInput],
+      );
+      setState(() {
+        cart = updatedCart;
+      });
+      widget.onUpdate?.call();
+      if (!mounted) return;
+      context.showSnackBar('Updated item in cart');
+    } on ShopifyException catch (error) {
+      log('onCartItemUpdate ShopifyException: ${error.errors?[0]["message"]}');
+      context.showSnackBar(
+        error.errors?[0]["message"] ?? 'Error updating cart',
+      );
+    } catch (error) {
+      log('onCartItemUpdate Error: $error');
+    }
+  }
+
+  void updateCartNote() async {
+    try {
+      final updatedCart = await shopifyCart.updateNoteInCart(
+        cartId: cart.id,
+        note: noteController.text.trim(),
+      );
+      setState(() {
+        cart = updatedCart;
+      });
+      widget.onUpdate?.call();
+      if (!mounted) return;
+      FocusScope.of(context).unfocus();
+      context.showSnackBar('Updated cart note');
+    } catch (error) {
+      log('updateCartNote Error: $error');
+    }
+  }
+
+  void onCheckoutTap() async {
+    final checkoutUrl = cart.checkoutUrl;
+    log('checkoutUrl: $checkoutUrl');
+    if (checkoutUrl == null) {
+      context.showSnackBar('Invalid checkout url');
+      return;
+    }
+    final status = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => WebViewCheckout(checkoutUrl: checkoutUrl),
+      ),
+    );
+    if (status != null && status) {
+      widget.onUpdate?.call();
+      if (!mounted) return;
+      Navigator.pop(context);
+      context.showSnackBar('Checkout Success');
+    }
+  }
+
+  String get _totalAmount {
+    final cost = cart.cost;
+    if (cost?.totalAmount != null) {
+      return '${cost!.totalAmount!.currencyCode} ${cost.totalAmount!.amount}';
+    }
+    return '';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomPadding = MediaQuery.of(context).viewPadding.bottom;
+
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.85,
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      child: Column(
+        children: [
+          _buildHeader(),
+          Expanded(
+            child: cart.lines.isEmpty ? _buildEmptyCart() : _buildCartContent(),
+          ),
+          if (cart.lines.isNotEmpty) _buildFooter(bottomPadding),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeader() {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 12, 12, 12),
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              'Your Cart (${cart.lines.length})',
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: Colors.black87,
+              ),
+            ),
+          ),
+          IconButton(
+            onPressed: () => Navigator.pop(context),
+            icon: const Icon(Icons.close, color: Colors.black54),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyCart() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.shopping_bag_outlined,
+            size: 64,
+            color: Colors.grey.shade300,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Your cart is empty',
+            style: TextStyle(
+              fontSize: 16,
+              color: Colors.grey.shade600,
+            ),
+          ),
+          const SizedBox(height: 8),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text(
+              'Continue shopping',
+              style: TextStyle(color: primaryOrange),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCartContent() {
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        ...cart.lines.map((line) => _buildCartItem(line)),
+        const SizedBox(height: 16),
+        _buildNoteField(),
+      ],
+    );
+  }
+
+  Widget _buildCartItem(Line line) {
+    final merchandise = line.merchandise;
+    if (merchandise == null) return const SizedBox();
+
+    final title = merchandise.product?.title ?? merchandise.title;
+    final price = merchandise.price;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.grey.shade200),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFF3E0),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Icon(
+              Icons.shopping_bag_outlined,
+              color: primaryOrange,
+              size: 24,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w500,
+                    fontSize: 14,
+                    color: Colors.black87,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${price.currencyCode} ${price.amount}',
+                  style: const TextStyle(
+                    color: primaryOrange,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Column(
+            children: [
+              _buildQuantityControl(line),
+              const SizedBox(height: 4),
+              GestureDetector(
+                onTap: () => removeLineItemFromCart("${line.id}"),
+                child: Text(
+                  'Remove',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey.shade500,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQuantityControl(Line line) {
+    return Container(
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.grey.shade300),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          GestureDetector(
+            onTap: () => onCartItemUpdate(line, increment: false),
+            child: Container(
+              padding: const EdgeInsets.all(8),
+              child: Icon(
+                Icons.remove,
+                size: 16,
+                color: Colors.grey.shade700,
+              ),
+            ),
+          ),
+          Container(
+            constraints: const BoxConstraints(minWidth: 32),
+            alignment: Alignment.center,
+            child: Text(
+              '${line.quantity ?? 0}',
+              style: const TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 14,
+              ),
+            ),
+          ),
+          GestureDetector(
+            onTap: () => onCartItemUpdate(line, increment: true),
+            child: Container(
+              padding: const EdgeInsets.all(8),
+              child: Icon(
+                Icons.add,
+                size: 16,
+                color: Colors.grey.shade700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNoteField() {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Order Note',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+              color: Colors.grey.shade700,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: noteController,
+                  decoration: InputDecoration(
+                    hintText: 'Add a note to your order...',
+                    hintStyle: TextStyle(color: Colors.grey.shade400),
+                    border: InputBorder.none,
+                    isDense: true,
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                  style: const TextStyle(fontSize: 14),
+                ),
+              ),
+              TextButton(
+                onPressed: updateCartNote,
+                child: const Text(
+                  'Save',
+                  style: TextStyle(color: primaryOrange),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFooter(double bottomPadding) {
+    return Container(
+      padding: EdgeInsets.fromLTRB(20, 16, 20, 16 + bottomPadding),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border(top: BorderSide(color: Colors.grey.shade200)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withAlpha(5),
+            offset: const Offset(0, -4),
+            blurRadius: 12,
+          ),
+        ],
+      ),
+      child: SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (_totalAmount.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Estimated Total',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                    Text(
+                      _totalAmount,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.black87,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: onCheckoutTap,
+                style: FilledButton.styleFrom(
+                  backgroundColor: primaryOrange,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: const Text(
+                  'Checkout',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
