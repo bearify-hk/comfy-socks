@@ -1,5 +1,7 @@
 // cart_service.dart
+import 'dart:developer';
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shopify_flutter/shopify_flutter.dart';
 import 'package:shopify_flutter/models/src/cart/inputs/attribute_input/attribute_input.dart';
 
@@ -9,18 +11,36 @@ class CartService {
   CartService._internal();
 
   final ShopifyCart _shopifyCart = ShopifyCart.instance;
+  static const String _cartIdKey = 'shopify_cart_id';
 
   Cart? _cart;
   Cart? get cart => _cart;
+  
+  // Modifies URL to auto-login the user in the WebView
+  String? get checkoutUrl {
+    if (_cart?.checkoutUrl == null) return null;
+    final uri = Uri.parse(_cart!.checkoutUrl!);
+    // 2025 Shopify Standard: Append logged_in=true to carry the session
+    return uri.replace(queryParameters: {
+      ...uri.queryParameters,
+      'logged_in': 'true',
+    }).toString();
+  }
+
   String? get cartId => _cart?.id;
 
   final List<VoidCallback> _listeners = [];
-
   void addListener(VoidCallback listener) => _listeners.add(listener);
   void removeListener(VoidCallback listener) => _listeners.remove(listener);
-  void _notifyListeners() {
-    for (final listener in _listeners) {
-      listener();
+  void _notifyListeners() => _listeners.forEach((l) => l());
+
+  /// Call this when the app starts to restore the previous session
+  Future<void> init() async {
+    final prefs = await SharedPreferences.getInstance();
+    final savedId = prefs.getString(_cartIdKey);
+    if (savedId != null) {
+      log('Restoring cart: $savedId');
+      await fetchCart(savedId);
     }
   }
 
@@ -32,12 +52,33 @@ class CartService {
       ),
     );
     _cart = await _shopifyCart.createCart(cartInput);
+    
+    if (_cart?.id != null) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_cartIdKey, _cart!.id);
+    }
+    
     _notifyListeners();
   }
 
-  Future<void> fetchCart(String cartId) async {
-    _cart = await _shopifyCart.getCartById(cartId);
-    _notifyListeners();
+  /// Syncs an existing guest cart with a newly logged-in user
+  Future<void> syncBuyerIdentity({String? email, String? accessToken}) async {
+    if (_cart == null) return;
+    
+    await updateBuyerIdentity(CartBuyerIdentityInput(
+      email: email ?? '',
+      customerAccessToken: accessToken,
+    ));
+  }
+
+  Future<void> fetchCart(String id) async {
+    try {
+      _cart = await _shopifyCart.getCartById(id);
+      _notifyListeners();
+    } catch (e) {
+      log('Cart expired or not found, clearing local ID');
+      await clearCart();
+    }
   }
 
   Future<void> addToCart({
@@ -46,7 +87,7 @@ class CartService {
     List<AttributeInput>? attributes,
   }) async {
     if (_cart == null) {
-      throw Exception('Cart not initialized. Call createCart() first.');
+      await createCart();
     }
 
     final cartLineInput = CartLineUpdateInput(
@@ -61,6 +102,7 @@ class CartService {
     );
     _notifyListeners();
   }
+
 
   Future<void> updateQuantity(
       String lineId, String variantId, int quantity) async {
@@ -109,10 +151,15 @@ class CartService {
     _notifyListeners();
   }
 
-  int get itemCount => _cart?.lines.length ?? 0;
+  int get itemCount {
+    if (_cart == null) return 0;
+    return _cart!.lines.fold(0, (sum, line) => sum + (line.quantity ?? 0));
+  }
 
-  void clearCart() {
+  Future<void> clearCart() async {
     _cart = null;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_cartIdKey);
     _notifyListeners();
   }
 }

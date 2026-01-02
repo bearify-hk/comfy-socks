@@ -1,9 +1,13 @@
-import 'dart:developer';
+// product_detail_screen.dart
 
+import 'dart:developer';
+import 'package:comfy_socks/screens/cart_bottom_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:shopify_flutter/models/src/cart/inputs/attribute_input/attribute_input.dart';
 import 'package:shopify_flutter/shopify_flutter.dart';
 
+import '../services/cart_service.dart';
+import '../services/shopify_customer_account_auth.dart';
 import '../extension.dart';
 
 class ProductDetailScreen extends StatefulWidget {
@@ -16,16 +20,12 @@ class ProductDetailScreen extends StatefulWidget {
 
 class ProductDetailScreenState extends State<ProductDetailScreen> {
   late Product product;
-  final ShopifyStore shopifyStore = ShopifyStore.instance;
-  final ShopifyCart shopifyCart = ShopifyCart.instance;
+  final CartService _cartService = CartService.instance;
+  final ShopifyCustomerAccountAuth _authService =
+      ShopifyCustomerAccountAuth.instance;
 
-  Cart? cart;
   bool isLoading = false;
-
-  // Map to track quantity for each variant
   Map<String, int> variantQuantities = {};
-
-  // PageController for image carousel
   final PageController _pageController = PageController();
   int _currentImageIndex = 0;
 
@@ -34,13 +34,23 @@ class ProductDetailScreenState extends State<ProductDetailScreen> {
     super.initState();
     product = widget.product;
     _initializeQuantities();
-    _initCart();
+
+    // Listen to the central service for changes (item count, cart creation, etc.)
+    _cartService.addListener(_updateUI);
+
+    // Initialize/Restore the cart session on load
+    _initCartSession();
   }
 
   @override
   void dispose() {
+    _cartService.removeListener(_updateUI);
     _pageController.dispose();
     super.dispose();
+  }
+
+  void _updateUI() {
+    if (mounted) setState(() {});
   }
 
   void _initializeQuantities() {
@@ -49,141 +59,74 @@ class ProductDetailScreenState extends State<ProductDetailScreen> {
     }
   }
 
-  Future<void> _initCart() async {
-    setState(() => isLoading = true);
-    try {
-      String? accessToken =
-          await ShopifyAuth.instance.currentCustomerAccessToken;
-      String? email = await ShopifyAuth.instance.currentUser().then((user) => user?.email);
-      if (accessToken == null || email == null) {
-        log('User not logged in. Cannot create cart.');
-        return;
-      }
-      
-      final CartInput cartInput = CartInput(
-        buyerIdentity: CartBuyerIdentityInput(
-          customerAccessToken: accessToken,
-          email: email,
-        ),
-      );
-      cart = await shopifyCart.createCart(cartInput);
-      log('Cart created: ${cart?.id}');
-    } catch (error) {
-      log('Error creating cart: $error');
-    } finally {
-      setState(() => isLoading = false);
-    }
-  }
+  Future<void> _initCartSession() async {
+    if (_cartService.cart != null) return;
 
-  Future<void> fetchProductDetails() async {
     setState(() => isLoading = true);
     try {
-      final productDetails = await shopifyStore.getProductsByIds([product.id]);
-      for (final Product productDetails in (productDetails ?? [])) {
-        final variants = productDetails.productVariants;
-        for (var variant in variants) {
-          log(
-            'Variant SellingPlanAllocation: ${variant.sellingPlanAllocations}',
-          );
+      // Restore existing cart from SharedPreferences or fetch from Shopify
+      await _cartService.init();
+
+      // If still null after init, create a new one with current auth identity
+      if (_cartService.cart == null) {
+        String? accessToken = _authService.accessToken;
+        String? email;
+
+        if (accessToken != null) {
+          final customerData = await _authService.getCurrentCustomer();
+          email =
+              customerData['data']['customer']['emailAddress']['emailAddress'];
         }
+
+        await _cartService.createCart(email: email, accessToken: accessToken);
       }
+    } catch (error) {
+      log('Error initializing cart session: $error');
     } finally {
-      setState(() => isLoading = false);
+      if (mounted) setState(() => isLoading = false);
     }
-  }
-
-  void _incrementQuantity(String variantId) {
-    setState(() {
-      variantQuantities[variantId] = (variantQuantities[variantId] ?? 1) + 1;
-    });
-  }
-
-  void _decrementQuantity(String variantId) {
-    setState(() {
-      final currentQty = variantQuantities[variantId] ?? 1;
-      if (currentQty > 1) {
-        variantQuantities[variantId] = currentQty - 1;
-      }
-    });
   }
 
   Future<void> _addToCart(ProductVariant variant) async {
-    if (cart == null) {
-      context.showSnackBar('Cart not initialized. Please wait...');
-      await _initCart();
-      if (cart == null) {
-        context.showSnackBar('Failed to create cart');
-        return;
-      }
-    }
-
     setState(() => isLoading = true);
 
     try {
       final quantity = variantQuantities[variant.id] ?? 1;
-      final cartLineInput = CartLineUpdateInput(
+
+      // The service handles logic for "create if null" internally
+      await _cartService.addToCart(
+        variantId: variant.id,
         quantity: quantity,
-        merchandiseId: variant.id,
         attributes: [
           AttributeInput(key: 'variant_title', value: variant.title),
         ],
       );
 
-      final updatedCart = await shopifyCart.addLineItemsToCart(
-        cartId: cart!.id,
-        cartLineInputs: [cartLineInput],
-      );
-
-      setState(() {
-        cart = updatedCart;
-      });
-
-      log('Added to cart: ${variant.title} x $quantity');
-      log('Cart now has ${updatedCart.lines.length} items');
-
       if (!mounted) return;
-      context.showSnackBar('Added ${variant.title} x $quantity to cart');
+      context.showSnackBar('Added ${product.title} to cart');
     } catch (error) {
       log('Error adding to cart: $error');
-      if (!mounted) return;
-      context.showSnackBar('Error adding to cart: $error');
+      if (mounted) context.showSnackBar('Could not add to cart');
     } finally {
-      setState(() => isLoading = false);
+      if (mounted) setState(() => isLoading = false);
     }
   }
 
   void _showCartBottomSheet() {
-    if (cart == null || cart!.lines.isEmpty) {
-      context.showSnackBar('Cart is empty');
+    if (_cartService.cart == null) {
+      context.showSnackBar('Cart is initializing...');
       return;
     }
 
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      builder: (context) => CartBottomSheet(
-        cart: cart!,
-        onCartUpdated: (updatedCart) {
-          setState(() {
-            cart = updatedCart;
-          });
-        },
-      ),
+      backgroundColor: Colors.transparent,
+      builder: (context) => CartBottomSheet(),
     );
   }
 
-  void _openImageViewer(int initialIndex) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => ImageViewerScreen(
-          images: product.images,
-          initialIndex: initialIndex,
-        ),
-      ),
-    );
-  }
-
+  // UI Helper methods (same as before but using _cartService.itemCount)
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -191,13 +134,9 @@ class ProductDetailScreenState extends State<ProductDetailScreen> {
         title: Text(product.title),
         actions: [
           IconButton(
-            onPressed: fetchProductDetails,
-            icon: const Icon(Icons.refresh),
-          ),
-          IconButton(
             onPressed: _showCartBottomSheet,
             icon: Badge.count(
-              count: cart?.lines.length ?? 0,
+              count: _cartService.itemCount,
               child: const Icon(Icons.shopping_cart),
             ),
           ),
@@ -207,7 +146,6 @@ class ProductDetailScreenState extends State<ProductDetailScreen> {
         children: [
           ListView(
             children: <Widget>[
-              // Image Carousel
               _buildImageCarousel(),
               Padding(
                 padding: const EdgeInsets.all(16.0),
@@ -218,32 +156,22 @@ class ProductDetailScreenState extends State<ProductDetailScreen> {
                       product.title,
                       style: Theme.of(context).textTheme.headlineSmall,
                     ),
-                    if (product.description != null &&
-                        product.description!.isNotEmpty) ...[
-                      const SizedBox(height: 8),
-                      Text(
-                        product.description!,
-                        style: Theme.of(context).textTheme.bodyMedium,
-                      ),
-                    ],
                     const SizedBox(height: 16),
-                    Text(
+                    const Text(
                       'Variants',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
+                      style: TextStyle(fontWeight: FontWeight.bold),
                     ),
                   ],
                 ),
               ),
               ..._buildProductVariants(),
-              const SizedBox(height: 80),
+              const SizedBox(height: 100),
             ],
           ),
           if (isLoading)
-            Container(
-              color: Colors.black26,
-              child: const Center(child: CircularProgressIndicator()),
+            const ColoredBox(
+              color: Colors.black12,
+              child: Center(child: CircularProgressIndicator()),
             ),
         ],
       ),
@@ -295,7 +223,7 @@ class ProductDetailScreenState extends State<ProductDetailScreen> {
                           child: CircularProgressIndicator(
                             value: loadingProgress.expectedTotalBytes != null
                                 ? loadingProgress.cumulativeBytesLoaded /
-                                    loadingProgress.expectedTotalBytes!
+                                      loadingProgress.expectedTotalBytes!
                                 : null,
                           ),
                         );
@@ -450,6 +378,29 @@ class ProductDetailScreenState extends State<ProductDetailScreen> {
     );
   }
 
+  Widget _buildDotIndicator(int index) {
+    final isSelected = index == _currentImageIndex;
+    return GestureDetector(
+      onTap: () {
+        _pageController.animateToPage(
+          index,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+        );
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        margin: const EdgeInsets.symmetric(horizontal: 4),
+        width: isSelected ? 24 : 8,
+        height: 8,
+        decoration: BoxDecoration(
+          color: isSelected ? Theme.of(context).primaryColor : Colors.grey[300],
+          borderRadius: BorderRadius.circular(4),
+        ),
+      ),
+    );
+  }
+
   Widget _buildNavigationButton({
     required IconData icon,
     VoidCallback? onPressed,
@@ -472,31 +423,6 @@ class ProductDetailScreenState extends State<ProductDetailScreen> {
     );
   }
 
-  Widget _buildDotIndicator(int index) {
-    final isSelected = index == _currentImageIndex;
-    return GestureDetector(
-      onTap: () {
-        _pageController.animateToPage(
-          index,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeInOut,
-        );
-      },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        margin: const EdgeInsets.symmetric(horizontal: 4),
-        width: isSelected ? 24 : 8,
-        height: 8,
-        decoration: BoxDecoration(
-          color: isSelected
-              ? Theme.of(context).primaryColor
-              : Colors.grey[300],
-          borderRadius: BorderRadius.circular(4),
-        ),
-      ),
-    );
-  }
-
   List<Widget> _buildProductVariants() {
     return product.productVariants.map((variant) {
       final quantity = variantQuantities[variant.id] ?? 1;
@@ -507,98 +433,38 @@ class ProductDetailScreenState extends State<ProductDetailScreen> {
         child: Padding(
           padding: const EdgeInsets.all(12.0),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          variant.title,
-                          style: Theme.of(context).textTheme.titleMedium,
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          variant.price.formattedPriceWithLocale('en_US'),
-                          style: Theme.of(context).textTheme.titleSmall
-                              ?.copyWith(
-                                color: Theme.of(context).primaryColor,
-                                fontWeight: FontWeight.bold,
-                              ),
-                        ),
-                        if (!isAvailable)
-                          Text(
-                            'Out of stock',
-                            style: TextStyle(
-                              color: Colors.red[600],
-                              fontSize: 12,
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                ],
+              ListTile(
+                title: Text(variant.title),
+                subtitle: Text(variant.price.amount.toString()),
+                trailing: !isAvailable
+                    ? const Text(
+                        'Out of stock',
+                        style: TextStyle(color: Colors.red),
+                      )
+                    : null,
               ),
-              const SizedBox(height: 12),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  // Quantity selector
-                  Container(
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey[300]!),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          onPressed: quantity > 1
-                              ? () => _decrementQuantity(variant.id)
-                              : null,
-                          icon: const Icon(Icons.remove),
-                          iconSize: 20,
-                          constraints: const BoxConstraints(
-                            minWidth: 40,
-                            minHeight: 40,
-                          ),
-                        ),
-                        Container(
-                          constraints: const BoxConstraints(minWidth: 40),
-                          alignment: Alignment.center,
-                          child: Text(
-                            '$quantity',
-                            style: Theme.of(context).textTheme.titleMedium,
-                          ),
-                        ),
-                        IconButton(
-                          onPressed: () => _incrementQuantity(variant.id),
-                          icon: const Icon(Icons.add),
-                          iconSize: 20,
-                          constraints: const BoxConstraints(
-                            minWidth: 40,
-                            minHeight: 40,
-                          ),
-                        ),
-                      ],
-                    ),
+                  Row(
+                    children: [
+                      IconButton(
+                        onPressed: () => _decrementQuantity(variant.id),
+                        icon: const Icon(Icons.remove),
+                      ),
+                      Text('$quantity'),
+                      IconButton(
+                        onPressed: () => _incrementQuantity(variant.id),
+                        icon: const Icon(Icons.add),
+                      ),
+                    ],
                   ),
-                  // Add to cart button
-                  ElevatedButton.icon(
+                  ElevatedButton(
                     onPressed: isAvailable && !isLoading
                         ? () => _addToCart(variant)
                         : null,
-                    icon: const Icon(Icons.add_shopping_cart),
-                    label: const Text('Add to Cart'),
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
-                      ),
-                    ),
+                    child: const Text('Add to Cart'),
                   ),
                 ],
               ),
@@ -608,6 +474,26 @@ class ProductDetailScreenState extends State<ProductDetailScreen> {
       );
     }).toList();
   }
+
+  void _openImageViewer(int initialIndex) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ImageViewerScreen(
+          images: product.images,
+          initialIndex: initialIndex,
+        ),
+      ),
+    );
+  }
+
+  void _incrementQuantity(String id) =>
+      setState(() => variantQuantities[id] = (variantQuantities[id] ?? 1) + 1);
+  void _decrementQuantity(String id) => setState(() {
+    if ((variantQuantities[id] ?? 1) > 1)
+      variantQuantities[id] = variantQuantities[id]! - 1;
+  });
+
 }
 
 // Full-screen image viewer
@@ -677,7 +563,7 @@ class _ImageViewerScreenState extends State<ImageViewerScreen> {
                       color: Colors.white,
                       value: loadingProgress.expectedTotalBytes != null
                           ? loadingProgress.cumulativeBytesLoaded /
-                              loadingProgress.expectedTotalBytes!
+                                loadingProgress.expectedTotalBytes!
                           : null,
                     ),
                   );
@@ -695,254 +581,6 @@ class _ImageViewerScreenState extends State<ImageViewerScreen> {
             ),
           );
         },
-      ),
-    );
-  }
-}
-
-class CartBottomSheet extends StatefulWidget {
-  final Cart cart;
-  final Function(Cart) onCartUpdated;
-
-  const CartBottomSheet({
-    super.key,
-    required this.cart,
-    required this.onCartUpdated,
-  });
-
-  @override
-  State<CartBottomSheet> createState() => _CartBottomSheetState();
-}
-
-class _CartBottomSheetState extends State<CartBottomSheet> {
-  final ShopifyCart shopifyCart = ShopifyCart.instance;
-  late Cart cart;
-  bool isLoading = false;
-
-  @override
-  void initState() {
-    super.initState();
-    cart = widget.cart;
-  }
-
-  Future<void> _updateLineItem(Line line, {bool increment = true}) async {
-    setState(() => isLoading = true);
-
-    try {
-      int quantity = line.quantity ?? 0;
-      if (!increment && quantity <= 1) {
-        // Remove item if quantity would be 0
-        await _removeLineItem(line);
-        return;
-      }
-
-      quantity = increment ? quantity + 1 : quantity - 1;
-
-      final cartLineInput = CartLineUpdateInput(
-        id: line.id,
-        quantity: quantity,
-        merchandiseId: line.variantId ?? '',
-      );
-
-      final updatedCart = await shopifyCart.updateLineItemsInCart(
-        cartId: cart.id,
-        cartLineInputs: [cartLineInput],
-      );
-
-      setState(() {
-        cart = updatedCart;
-      });
-      widget.onCartUpdated(updatedCart);
-
-      if (!mounted) return;
-      context.showSnackBar('Updated cart');
-    } catch (error) {
-      log('Error updating cart: $error');
-      if (!mounted) return;
-      context.showSnackBar('Error updating cart');
-    } finally {
-      setState(() => isLoading = false);
-    }
-  }
-
-  Future<void> _removeLineItem(Line line) async {
-    setState(() => isLoading = true);
-
-    try {
-      final updatedCart = await shopifyCart.removeLineItemsFromCart(
-        cartId: cart.id,
-        lineIds: [line.id!],
-      );
-
-      setState(() {
-        cart = updatedCart;
-      });
-      widget.onCartUpdated(updatedCart);
-
-      if (!mounted) return;
-
-      if (updatedCart.lines.isEmpty) {
-        Navigator.pop(context);
-      }
-
-      context.showSnackBar('Removed item from cart');
-    } catch (error) {
-      log('Error removing item: $error');
-      if (!mounted) return;
-      context.showSnackBar('Error removing item');
-    } finally {
-      setState(() => isLoading = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: MediaQuery.of(context).size.height * 0.7,
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Cart (${cart.lines.length} items)',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              IconButton(
-                onPressed: () => Navigator.pop(context),
-                icon: const Icon(Icons.close),
-              ),
-            ],
-          ),
-          const Divider(),
-          if (isLoading)
-            const LinearProgressIndicator()
-          else
-            const SizedBox(height: 4),
-          Expanded(
-            child: ListView.builder(
-              itemCount: cart.lines.length,
-              itemBuilder: (context, index) {
-                final line = cart.lines[index];
-                final merchandise = line.merchandise;
-
-                return Card(
-                  margin: const EdgeInsets.symmetric(vertical: 8),
-                  child: Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                merchandise?.product?.title ??
-                                    merchandise?.title ??
-                                    'Unknown Product',
-                                style: Theme.of(context).textTheme.titleMedium,
-                              ),
-                              if (merchandise?.title != null &&
-                                  merchandise?.title != 'Default')
-                                Text(
-                                  merchandise!.title,
-                                  style: Theme.of(context).textTheme.bodySmall,
-                                ),
-                              const SizedBox(height: 4),
-                              Text(
-                                '${merchandise?.price.amount ?? 0} ${merchandise?.price.currencyCode ?? ''}',
-                                style: TextStyle(
-                                  color: Theme.of(context).primaryColor,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Column(
-                          children: [
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                IconButton(
-                                  onPressed: isLoading
-                                      ? null
-                                      : () => _updateLineItem(
-                                          line,
-                                          increment: false,
-                                        ),
-                                  icon: const Icon(Icons.remove_circle_outline),
-                                  iconSize: 24,
-                                ),
-                                Text(
-                                  '${line.quantity}',
-                                  style: Theme.of(
-                                    context,
-                                  ).textTheme.titleMedium,
-                                ),
-                                IconButton(
-                                  onPressed: isLoading
-                                      ? null
-                                      : () => _updateLineItem(line),
-                                  icon: const Icon(Icons.add_circle_outline),
-                                  iconSize: 24,
-                                ),
-                              ],
-                            ),
-                            IconButton(
-                              onPressed: isLoading
-                                  ? null
-                                  : () => _removeLineItem(line),
-                              icon: const Icon(Icons.delete_outline),
-                              color: Colors.red,
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-          const Divider(),
-          if (cart.cost != null)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text('Total:', style: Theme.of(context).textTheme.titleLarge),
-                  Text(
-                    '${cart.cost!.totalAmount.amount} ${cart.cost!.totalAmount.currencyCode}',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      color: Theme.of(context).primaryColor,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: cart.checkoutUrl != null
-                  ? () {
-                      // Navigate to checkout
-                      log('Checkout URL: ${cart.checkoutUrl}');
-                      // You can navigate to WebViewCheckout here
-                    }
-                  : null,
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 16),
-              ),
-              child: const Text('Proceed to Checkout'),
-            ),
-          ),
-        ],
       ),
     );
   }

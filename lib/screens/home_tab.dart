@@ -202,7 +202,7 @@ class HomeTabState extends State<HomeTab> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const CircularProgressIndicator(
+            CircularProgressIndicator(
               strokeWidth: 2,
               color: Theme.of(context).primaryColor,
             ),
@@ -319,7 +319,7 @@ class HomeTabState extends State<HomeTab> {
               label: const Text('Clear Search'),
               style: OutlinedButton.styleFrom(
                 foregroundColor: Theme.of(context).primaryColor,
-                side: const BorderSide(color: Theme.of(context).primaryColor),
+                side: BorderSide(color: Theme.of(context).primaryColor),
                 padding: const EdgeInsets.symmetric(
                   horizontal: 24,
                   vertical: 12,
@@ -426,7 +426,7 @@ class HomeTabState extends State<HomeTab> {
               label: const Text('Refresh'),
               style: OutlinedButton.styleFrom(
                 foregroundColor: Theme.of(context).primaryColor,
-                side: const BorderSide(color: Theme.of(context).primaryColor),
+                side: BorderSide(color: Theme.of(context).primaryColor),
                 padding: const EdgeInsets.symmetric(
                   horizontal: 24,
                   vertical: 12,

@@ -1,21 +1,11 @@
 // cart_tab.dart
 import 'dart:developer';
-
 import 'package:comfy_socks/extension.dart';
-import 'package:comfy_socks/screens/checkout_webview.dart';
 import 'package:comfy_socks/services/cart_service.dart';
 import 'package:flutter/material.dart';
-import 'package:shopify_flutter/mixins/src/shopify_error.dart';
-import 'package:shopify_flutter/models/src/cart/inputs/attribute_input/attribute_input.dart';
 import 'package:shopify_flutter/shopify_flutter.dart';
-
-void logCartInfo(Cart cart) {
-  log('log => cart id: ${cart.id}');
-  log('log => cart attributes: ${cart.attributes}');
-  for (final line in cart.lines) {
-    log('log => line attributes: ${line.attributes}');
-  }
-}
+import 'package:comfy_socks/services/shopify_customer_account_auth.dart';
+import 'package:comfy_socks/screens/checkout_webview.dart'; // Ensure this matches your project
 
 class CartTab extends StatefulWidget {
   const CartTab({super.key});
@@ -25,17 +15,15 @@ class CartTab extends StatefulWidget {
 }
 
 class _CartTabState extends State<CartTab> {
-  final ShopifyStore shopifyStore = ShopifyStore.instance;
   final CartService cartService = CartService.instance;
-
-  List<Product> products = [];
+  final ShopifyCustomerAccountAuth authService = ShopifyCustomerAccountAuth.instance;
   bool isLoading = false;
 
   @override
   void initState() {
     super.initState();
     cartService.addListener(_onCartUpdate);
-    init();
+    initializeCart();
   }
 
   @override
@@ -44,543 +32,166 @@ class _CartTabState extends State<CartTab> {
     super.dispose();
   }
 
-  void _onCartUpdate() {
-    if (mounted) setState(() {});
-  }
+  void _onCartUpdate() => setState(() {});
 
-  void init() {
-    initializeCart();
-  }
-
-  void initializeCart() async {
-    // Only create cart if one doesn't exist
-    if (cartService.cart == null) {
-      setState(() {
-        isLoading = true;
-      });
-      try {
-        String? accessToken =
-            await ShopifyAuth.instance.currentCustomerAccessToken;
-        await cartService.createCart(
-          email: (await ShopifyAuth.instance.currentUser())?.email,
-          accessToken: accessToken,
-        );
-        if (cartService.cart != null) {
-          logCartInfo(cartService.cart!);
-        }
-      } on ShopifyException catch (error) {
-        log('createCart ShopifyException: $error');
-        if (!mounted) return;
-        /*
-        context.showSnackBar(
-          error.errors?[0]["message"] ?? 'Error creating cart',
-        );
-        */
-      } catch (error) {
-        log('createCart Error: $error');
-      } finally {
-        if (mounted) {
-          setState(() {
-            isLoading = false;
-          });
-        }
-      }
-    }
-  }
-
-  void refreshCart() async {
-    if (cartService.cartId == null) return;
+  Future<void> initializeCart() async {
+    if (cartService.cart != null) return;
+    setState(() => isLoading = true);
     try {
-      await cartService.fetchCart(cartService.cartId!);
-      if (cartService.cart != null) {
-        logCartInfo(cartService.cart!);
+      String? accessToken = authService.accessToken;
+      String? customerEmail;
+      if (accessToken != null) {
+        final customerData = await authService.getCurrentCustomer();
+        customerEmail = customerData['data']['customer']['emailAddress']['emailAddress'];
       }
-    } on ShopifyException catch (error) {
-      log('refreshCart ShopifyException: $error');
-      if (!mounted) return;
-      context.showSnackBar(
-        error.errors?[0]["message"] ?? 'Error retrieving cart',
-      );
-    } catch (error) {
-      log('refreshCart Error: $error');
+      await cartService.createCart(email: customerEmail, accessToken: accessToken);
+    } catch (e) {
+      log('Init Cart Error: $e');
+    } finally {
+      if (mounted) setState(() => isLoading = false);
     }
-  }
-
-  void addLineItemToCart(Product product) async {
-    try {
-      await cartService.addToCart(
-        variantId: product.productVariants.first.id,
-        quantity: 1,
-        attributes: [
-          AttributeInput(
-            key: 'color',
-            value: 'red',
-          ),
-        ],
-      );
-      if (cartService.cart != null) {
-        logCartInfo(cartService.cart!);
-      }
-      if (!mounted) return;
-      context.showSnackBar('Added ${product.title} to cart');
-    } on ShopifyException catch (error) {
-      log('addLineItemToCart ShopifyException: $error');
-      if (!mounted) return;
-      context.showSnackBar(
-        error.errors?[0]["message"] ?? 'Error adding item to cart',
-      );
-    } catch (error) {
-      log('addLineItemToCart Error: $error');
-    }
-  }
-
-  void onCartItemUpdate() async {
-    refreshCart();
   }
 
   @override
   Widget build(BuildContext context) {
     final cart = cartService.cart;
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
+      backgroundColor: colorScheme.surface,
       appBar: AppBar(
-        title: const Text('Cart'),
+        title: const Text('My Cart', style: TextStyle(fontWeight: FontWeight.bold)),
+        centerTitle: true,
         actions: [
           if (cart != null)
-            IconButton(
-              onPressed: refreshCart,
-              icon: const Icon(Icons.refresh),
-            ),
-          if (cart != null)
-            IconButton(
-              onPressed: () {
-                showModalBottomSheet(
-                  context: context,
-                  builder: (context) => BuyerIndetity(
-                    cart: cart,
-                    onUpdate: onCartItemUpdate,
-                  ),
-                );
-              },
-              icon: const Icon(Icons.person),
-            ),
-          IconButton(
-            onPressed: () {
-              if (cart == null) {
-                context.showSnackBar('Cart not initialized');
-                return;
-              }
-              showModalBottomSheet(
-                context: context,
-                builder: (context) => CartInfo(
-                  cart: cart,
-                  onCartItemUpdate: onCartItemUpdate,
-                ),
-              );
-            },
-            icon: Badge.count(
-              count: cartService.itemCount,
-              child: const Icon(Icons.shopping_cart),
-            ),
-          ),
+            IconButton(onPressed: () => cartService.fetchCart(cart.id), icon: const Icon(Icons.refresh_rounded)),
         ],
       ),
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              child: Padding(
-                padding: const EdgeInsets.all(8),
-                child: Column(
+          : (cart == null || cart.lines.isEmpty)
+              ? _buildEmptyState(colorScheme)
+              : Column(
                   children: [
-                    if (cart == null)
-                      const Padding(
-                        padding: EdgeInsets.all(16.0),
-                        child: Text('Initializing cart...'),
-                      ),
-                    ...products.map(
-                      (product) => ListTile(
-                        title: Text(product.title),
-                        subtitle: Text(product.description ?? ''),
-                        trailing: IconButton(
-                          onPressed: cart != null
-                              ? () => addLineItemToCart(product)
-                              : null,
-                          icon: const Icon(Icons.add_shopping_cart),
-                        ),
+                    Expanded(
+                      child: ListView.separated(
+                        padding: const EdgeInsets.all(16),
+                        itemCount: cart.lines.length,
+                        separatorBuilder: (context, index) => const SizedBox(height: 12),
+                        itemBuilder: (context, index) {
+                          final line = cart.lines[index];
+                          final product = line.merchandise?.product;
+                          final variant = line.merchandise;
+                          // Extracting Thumbnail and Price
+                          final imageUrl = variant?.image?.originalSrc;
+                          final price = variant?.price.amount ?? 0.0;
+                          final currency = variant?.price.currencyCode ?? 'USD';
+
+                          return Card(
+                            elevation: 0,
+                            color: colorScheme.surfaceContainerLow,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                              side: BorderSide(color: colorScheme.outlineVariant, width: 1),
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.all(8.0),
+                              child: ListTile(
+                                contentPadding: EdgeInsets.zero,
+                                leading: ClipRRect(
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: imageUrl != null
+                                      ? Image.network(imageUrl, width: 64, height: 64, fit: BoxFit.cover)
+                                      : Container(width: 64, height: 64, color: colorScheme.surfaceContainerHighest),
+                                ),
+                                title: Text(
+                                  product?.title ?? 'Product',
+                                  style: const TextStyle(fontWeight: FontWeight.w600),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                subtitle: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text("Qty: ${line.quantity}", style: Theme.of(context).textTheme.bodySmall),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      "$currency ${price.toStringAsFixed(2)}",
+                                      style: TextStyle(color: colorScheme.primary, fontWeight: FontWeight.bold),
+                                    ),
+                                  ],
+                                ),
+                                trailing: IconButton(
+                                  icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent),
+                                  onPressed: () {
+                                    // Add your logic to remove from cart here
+                                  },
+                                ),
+                              ),
+                            ),
+                          );
+                        },
                       ),
                     ),
+                    _buildCheckoutSummary(cart, colorScheme),
                   ],
                 ),
-              ),
-            ),
     );
   }
-}
 
-class CartInfo extends StatefulWidget {
-  final Cart cart;
-  final VoidCallback? onCartItemUpdate;
-  const CartInfo({super.key, required this.cart, this.onCartItemUpdate});
-
-  @override
-  State<CartInfo> createState() => _CartInfoState();
-}
-
-class _CartInfoState extends State<CartInfo> {
-  final CartService cartService = CartService.instance;
-  final noteCtrl = TextEditingController();
-
-  @override
-  void initState() {
-    super.initState();
-    cartService.addListener(_onCartUpdate);
-    noteCtrl.text = cartService.cart?.note ?? '';
-    if (cartService.cart != null) {
-      logCartInfo(cartService.cart!);
-    }
-  }
-
-  @override
-  void dispose() {
-    cartService.removeListener(_onCartUpdate);
-    noteCtrl.dispose();
-    super.dispose();
-  }
-
-  void _onCartUpdate() {
-    if (mounted) setState(() {});
-  }
-
-  Cart? get cart => cartService.cart;
-
-  void removeLineItemFromCart(String lineId) async {
-    try {
-      if (!lineId.startsWith('gid://shopify/CartLine/')) {
-        context.showSnackBar('Invalid lineId');
-        log('Invalid lineId: $lineId');
-        return;
-      }
-      await cartService.removeFromCart(lineId);
-      widget.onCartItemUpdate?.call();
-      if (!mounted) return;
-      context.showSnackBar('Removed item from cart');
-    } on ShopifyException catch (error) {
-      log('removeLineItemFromCart ShopifyException: $error');
-      if (!mounted) return;
-      context.showSnackBar(
-        error.errors?[0]["message"] ?? 'Error removing item from cart',
-      );
-    } catch (error) {
-      log('removeLineItemFromCart Error: $error');
-    }
-  }
-
-  void onCartItemQuantityUpdate(Line line, {bool increment = true}) async {
-    try {
-      int quantity = line.quantity ?? 0;
-      if (!increment && quantity <= 1) {
-        context.showSnackBar('Cannot reduce quantity below 1');
-        return;
-      }
-      quantity = increment ? quantity + 1 : quantity - 1;
-
-      await cartService.updateQuantity(
-        "${line.id}",
-        "${line.variantId}",
-        quantity,
-      );
-      widget.onCartItemUpdate?.call();
-      if (!mounted) return;
-      context.showSnackBar('Updated item in cart');
-    } on ShopifyException catch (error) {
-      log('onCartItemQuantityUpdate ShopifyException: ${error.errors?[0]["message"]}');
-      if (!mounted) return;
-      context.showSnackBar(
-        error.errors?[0]["message"] ?? 'Error updating cart',
-      );
-    } catch (error) {
-      log('onCartItemQuantityUpdate Error: $error');
-    }
-  }
-
-  void updateCartNote() async {
-    try {
-      await cartService.updateNote(noteCtrl.text.trim());
-      widget.onCartItemUpdate?.call();
-      if (!mounted) return;
-      context.showSnackBar('Updated cart note');
-    } catch (error) {
-      log('updateCartNote Error: $error');
-    }
-  }
-
-  void onCheckoutTap() async {
-    final checkoutUrl = cart?.checkoutUrl;
-    log('checkoutUrl: $checkoutUrl');
-    if (checkoutUrl == null) {
-      context.showSnackBar('Invalid checkout url');
-      return;
-    }
-    final status = await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => WebViewCheckout(checkoutUrl: checkoutUrl),
-      ),
-    );
-    if (status != null && status) {
-      if (!mounted) return;
-      context.showSnackBar('Checkout Success');
-      widget.onCartItemUpdate?.call();
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (cart == null) {
-      return const SizedBox(
-        height: 200,
-        child: Center(child: Text('Cart not available')),
-      );
-    }
-
-    return SizedBox(
-      height: MediaQuery.of(context).size.height * 0.8,
-      width: double.maxFinite,
+  Widget _buildEmptyState(ColorScheme colorScheme) {
+    return Center(
       child: Column(
-        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'Cart: ${cart!.lines.length} items',
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                ),
-                IconButton(
-                  onPressed: onCheckoutTap,
-                  icon: const Icon(Icons.logout),
-                ),
-              ],
-            ),
-          ),
-          const Divider(),
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextFormField(
-                    controller: noteCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Note',
-                    ),
-                  ),
-                ),
-                IconButton(
-                  onPressed: updateCartNote,
-                  icon: const Icon(Icons.save),
-                ),
-              ],
-            ),
-          ),
-          Expanded(
-            child: SingleChildScrollView(
-              child: Column(
-                children: cart!.lines.map(
-                  (line) {
-                    final merchandise = line.merchandise;
-                    if (merchandise == null) {
-                      return const SizedBox();
-                    }
-                    return ListTile(
-                      leading: Text('${line.quantity}x'),
-                      title: Text(
-                        merchandise.product?.title ?? merchandise.title,
-                      ),
-                      subtitle: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Price: ${merchandise.price.amount} ${merchandise.price.currencyCode}',
-                          ),
-                          Row(
-                            children: [
-                              IconButton(
-                                onPressed: () =>
-                                    onCartItemQuantityUpdate(line),
-                                icon: const Icon(Icons.add),
-                              ),
-                              Text('${line.quantity}'),
-                              IconButton(
-                                onPressed: () => onCartItemQuantityUpdate(
-                                  line,
-                                  increment: false,
-                                ),
-                                icon: const Icon(Icons.remove),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                      trailing: IconButton(
-                        onPressed: () => removeLineItemFromCart("${line.id}"),
-                        icon: const Icon(Icons.delete),
-                      ),
-                    );
-                  },
-                ).toList(),
-              ),
-            ),
-          ),
+          Icon(Icons.shopping_basket_outlined, size: 80, color: colorScheme.outline),
+          const SizedBox(height: 16),
+          const Text("Your cart is empty", style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500)),
         ],
       ),
     );
   }
-}
 
-class BuyerIndetity extends StatefulWidget {
-  final Cart cart;
-  final VoidCallback? onUpdate;
-  const BuyerIndetity({super.key, required this.cart, this.onUpdate});
-
-  @override
-  State<BuyerIndetity> createState() => _BuyerIndetityState();
-}
-
-class _BuyerIndetityState extends State<BuyerIndetity> {
-  final CartService cartService = CartService.instance;
-  CartBuyerIdentity? buyerIdentity;
-
-  @override
-  void initState() {
-    super.initState();
-    cartService.addListener(_onCartUpdate);
-    buyerIdentity = cartService.cart?.buyerIdentity;
-  }
-
-  @override
-  void dispose() {
-    cartService.removeListener(_onCartUpdate);
-    super.dispose();
-  }
-
-  void _onCartUpdate() {
-    if (mounted) {
-      setState(() {
-        buyerIdentity = cartService.cart?.buyerIdentity;
-      });
-    }
-  }
-
-  void updateBuyerIdentity() async {
-    try {
-      await cartService.updateBuyerIdentity(
-        CartBuyerIdentityInput(
-          email: '',
-          phone: '',
-          countryCode: buyerIdentity?.countryCode,
-          deliveryAddressPreferences: [
-            DeliveryAddressInput(
-              deliveryAddress: MailingAddressInput(
-                address1: '11 Hinkler Avenue',
-                city: 'Sydney',
-                country: 'Australia',
-                firstName: 'Anderson',
-                lastName: 'Fetter',
-                phone: '044444444',
-                zip: '2229',
+  Widget _buildCheckoutSummary(Cart cart, ColorScheme colorScheme) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainer,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      child: SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text("Estimated Total", style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
+                Text(
+                  "${cart.cost!.totalAmount.currencyCode} ${cart.cost!.totalAmount.amount.toStringAsFixed(2)}",
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: colorScheme.onSurface),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              height: 56,
+              child: FilledButton(
+                style: FilledButton.styleFrom(
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                ),
+                onPressed: cart.checkoutUrl != null ? () => _launchCheckout(cart.checkoutUrl!) : null,
+                child: const Text("Proceed to Checkout", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
               ),
             ),
           ],
         ),
-      );
-      widget.onUpdate?.call();
-      if (!mounted) return;
-      context.showSnackBar('Updated buyer identity');
-    } on ShopifyException catch (error) {
-      log('updateBuyerIdentity ShopifyException: $error');
-      if (!mounted) return;
-      context.showSnackBar(
-        error.errors?[0]["message"] ?? 'Error updating buyer identity',
-      );
-    } catch (error) {
-      log('updateBuyerIdentity Error: $error');
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: double.maxFinite,
-      height: MediaQuery.of(context).size.height * 0.8,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Text(
-              'Buyer Identity',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-          ),
-          const Divider(),
-          Expanded(
-            child: SingleChildScrollView(
-              child: Column(
-                children: [
-                  ListTile(
-                    title: const Text('Email'),
-                    subtitle: Text(buyerIdentity?.email ?? 'Not set'),
-                    trailing: IconButton(
-                      icon: const Icon(Icons.refresh),
-                      onPressed: updateBuyerIdentity,
-                    ),
-                  ),
-                  ListTile(
-                    title: const Text('Phone'),
-                    subtitle: Text(buyerIdentity?.phone ?? 'Not set'),
-                  ),
-                  ListTile(
-                    title: const Text('Country Code'),
-                    subtitle: Text(buyerIdentity?.countryCode ?? 'Not set'),
-                  ),
-                  ExpansionTile(
-                    initiallyExpanded: true,
-                    title: const Text('Delivery Address Preferences'),
-                    children: [
-                      if (buyerIdentity?.deliveryAddressPreferences?.isEmpty ??
-                          true)
-                        const ListTile(
-                          title: Text('No delivery address preferences'),
-                        ),
-                      ...(buyerIdentity?.deliveryAddressPreferences ?? []).map(
-                        (mailingAddress) => ListTile(
-                          title: Text(
-                              '${mailingAddress?.firstName} ${mailingAddress?.lastName}'),
-                          subtitle: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('${mailingAddress?.address1}'),
-                              Text(
-                                  '${mailingAddress?.city}, ${mailingAddress?.country}'),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
       ),
     );
+  }
+
+  void _launchCheckout(String url) {
+    Navigator.push(context, MaterialPageRoute(builder: (context) => WebViewCheckout(checkoutUrl: url)));
   }
 }
