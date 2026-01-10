@@ -40,7 +40,7 @@ class HomeTabState extends State<HomeTab> {
 
   void _onSearchChanged(String query) {
     _debounceTimer?.cancel();
-    
+
     setState(() {
       _searchQuery = query;
     });
@@ -57,7 +57,7 @@ class HomeTabState extends State<HomeTab> {
 
   Future<void> _searchForProduct(String searchKeyword) async {
     if (!mounted) return;
-    
+
     setState(() {
       _isLoading = true;
       _errorMessage = null;
@@ -117,10 +117,7 @@ class HomeTabState extends State<HomeTab> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: _buildAppBar(),
-      body: _buildBody(),
-    );
+    return Scaffold(appBar: _buildAppBar(), body: _buildBody());
   }
 
   PreferredSizeWidget _buildAppBar() {
@@ -147,10 +144,7 @@ class HomeTabState extends State<HomeTab> {
             border: InputBorder.none,
             contentPadding: const EdgeInsets.symmetric(vertical: 12),
           ),
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.normal,
-          ),
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.normal),
           textInputAction: TextInputAction.search,
           onSubmitted: (query) {
             if (query.isNotEmpty) {
@@ -175,9 +169,7 @@ class HomeTabState extends State<HomeTab> {
       elevation: 0,
       title: const Text(
         'Comfy Socks',
-        style: TextStyle(
-          fontWeight: FontWeight.bold,
-        ),
+        style: TextStyle(fontWeight: FontWeight.bold),
       ),
       actions: [
         IconButton(
@@ -209,10 +201,7 @@ class HomeTabState extends State<HomeTab> {
             const SizedBox(height: 16),
             Text(
               _searchQuery.isNotEmpty ? 'Searching...' : 'Loading products...',
-              style: const TextStyle(
-                color: Colors.grey,
-                fontSize: 14,
-              ),
+              style: const TextStyle(color: Colors.grey, fontSize: 14),
             ),
           ],
         ),
@@ -231,7 +220,7 @@ class HomeTabState extends State<HomeTab> {
     }
 
     return RefreshIndicator(
-      onRefresh: _searchQuery.isNotEmpty 
+      onRefresh: _searchQuery.isNotEmpty
           ? () => _searchForProduct(_searchQuery)
           : _fetchAllProducts,
       color: Theme.of(context).primaryColor,
@@ -253,11 +242,11 @@ class HomeTabState extends State<HomeTab> {
           SliverPadding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             sliver: SliverGrid(
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
+              gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                maxCrossAxisExtent: 200, // Each card will be roughly 200px wide
                 mainAxisSpacing: 16,
                 crossAxisSpacing: 16,
-                childAspectRatio: 0.75,
+                childAspectRatio: 0.65, // A safe vertical ratio for e-commerce
               ),
               delegate: SliverChildBuilderDelegate(
                 (context, index) => ProductCard(
@@ -289,11 +278,7 @@ class HomeTabState extends State<HomeTab> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.search_off_rounded,
-              size: 64,
-              color: Colors.grey[400],
-            ),
+            Icon(Icons.search_off_rounded, size: 64, color: Colors.grey[400]),
             const SizedBox(height: 16),
             Text(
               'No Results Found',
@@ -307,10 +292,7 @@ class HomeTabState extends State<HomeTab> {
             Text(
               'No products match "$_searchQuery"',
               textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey[600],
-              ),
+              style: TextStyle(fontSize: 14, color: Colors.grey[600]),
             ),
             const SizedBox(height: 24),
             OutlinedButton.icon(
@@ -360,14 +342,11 @@ class HomeTabState extends State<HomeTab> {
             Text(
               _errorMessage ?? 'Please try again',
               textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey[600],
-              ),
+              style: TextStyle(fontSize: 14, color: Colors.grey[600]),
             ),
             const SizedBox(height: 24),
             ElevatedButton.icon(
-              onPressed: _searchQuery.isNotEmpty 
+              onPressed: _searchQuery.isNotEmpty
                   ? () => _searchForProduct(_searchQuery)
                   : _fetchAllProducts,
               icon: const Icon(Icons.refresh_rounded),
@@ -414,10 +393,7 @@ class HomeTabState extends State<HomeTab> {
             const SizedBox(height: 8),
             Text(
               'Check back later for new arrivals',
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey[600],
-              ),
+              style: TextStyle(fontSize: 14, color: Colors.grey[600]),
             ),
             const SizedBox(height: 24),
             OutlinedButton.icon(
@@ -463,7 +439,8 @@ class HomeTabState extends State<HomeTab> {
       if (mounted) {
         setState(() {
           _isLoading = false;
-          _errorMessage = 'Failed to load products. Please check your connection.';
+          _errorMessage =
+              'Failed to load products. Please check your connection.';
         });
       }
     }
