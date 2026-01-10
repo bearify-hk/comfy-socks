@@ -1,3 +1,4 @@
+// product_card.dart
 import 'package:flutter/material.dart';
 import 'package:shopify_flutter/shopify_flutter.dart';
 
@@ -5,126 +6,93 @@ class ProductCard extends StatelessWidget {
   final Product product;
   final VoidCallback? onTap;
 
-  // Theme colors
-  static const Color primaryOrange = Color(0xFFFF6B00);
-  static const Color lightOrange = Color(0xFFFFF3E0);
-
   const ProductCard({super.key, required this.product, this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    final hasImage = product.images.isNotEmpty;
-    final price = _getProductPrice();
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: InkWell(
+        onTap: onTap,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            // We calculate height based on the available space
+            // Giving the image 65% of the card and text 35%
+            double imageHeight = constraints.maxHeight * 0.65;
 
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withAlpha(5),
-              blurRadius: 10,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Product Image
-            Expanded(
-              flex: 3,
-              child: ClipRRect(
-                borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(12),
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Fixed Image Area
+                SizedBox(
+                  height: imageHeight,
+                  width: double.infinity,
+                  child: product.images.isNotEmpty
+                      ? Image.network(
+                          product.images.first.originalSrc,
+                          fit: BoxFit.cover,
+                        )
+                      : _buildPlaceholder(context),
                 ),
-                child: hasImage
-                    ? Image.network(
-                        product.images.first.originalSrc,
-                        width: double.infinity,
-                        fit: BoxFit.cover,
-                        loadingBuilder: (context, child, loadingProgress) {
-                          if (loadingProgress == null) return child;
-                          return Container(
-                            color: Colors.grey[200],
-                            child: const Center(
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: primaryOrange,
+
+                // Flexible Text Area
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        Text(
+                          product.title,
+                          style: Theme.of(context).textTheme.titleSmall
+                              ?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                fontSize:
+                                    13, // Slightly smaller for grid safety
                               ),
-                            ),
-                          );
-                        },
-                        errorBuilder: (context, error, stackTrace) {
-                          return _buildPlaceholderImage(context);
-                        },
-                      )
-                    : _buildPlaceholderImage(context),
-              ),
-            ),
-            // Product Info
-            Expanded(
-              flex: 2,
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      product.title,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        height: 1.3,
-                      ),
-                    ),
-                    const Spacer(),
-                    if (price != null)
-                      Text(
-                        price,
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Theme.of(context).primaryColor,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                      ),
-                  ],
+                        Text(
+                          _getProductPrice() ?? '',
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.primary,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-              ),
-            ),
-          ],
+              ],
+            );
+          },
         ),
       ),
     );
   }
 
-  Widget _buildPlaceholderImage(context) {
+  Widget _buildPlaceholder(BuildContext context) {
     return Container(
-      color: lightOrange,
+      color: Theme.of(context).colorScheme.surfaceContainerHighest,
       child: Center(
         child: Icon(
-          Icons.image_outlined,
-          size: 48,
-          color: Theme.of(context).colorScheme.onPrimary.withAlpha(50),
+          Icons.upcoming_outlined,
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
         ),
       ),
     );
   }
 
   String? _getProductPrice() {
-    try {
-      if (product.productVariants.isNotEmpty) {
-        final variant = product.productVariants.first;
-        final price = variant.price.amount;
-        return '\$${price.toStringAsFixed(2)}';
-      }
-    } catch (e) {
-      debugPrint('Error getting price: $e');
-    }
-    return null;
+    if (product.productVariants.isEmpty) return null;
+    final price = product.productVariants.first.price.amount;
+    return '\$${price.toStringAsFixed(2)}';
   }
 }
