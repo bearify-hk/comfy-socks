@@ -1,4 +1,5 @@
-import 'package:comfy_socks/services/cart_service.dart'; // Import your cart service
+import 'dart:collection';
+import 'package:comfy_socks/services/cart_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 
@@ -11,9 +12,9 @@ class WebViewCheckout extends StatefulWidget {
 }
 
 class _WebViewCheckoutState extends State<WebViewCheckout> {
-  late final InAppWebViewController webViewController;
+  InAppWebViewController? webViewController;
+  bool isLoading = true; // For the loading spinner
 
-  // 2025 Shopify Success Patterns
   final List<String> successPatterns = [
     '/thank_you',
     '/thank-you',
@@ -23,67 +24,91 @@ class _WebViewCheckoutState extends State<WebViewCheckout> {
   ];
 
   void handleUrlChanged(String url) {
-    // 1. Check for Successful Checkout
     if (successPatterns.any((pattern) => url.contains(pattern))) {
-      // CLEAR LOCAL CART: This is crucial
       CartService.instance.clearCart(); 
 
       Future.delayed(const Duration(seconds: 3), () {
         if (!mounted) return;
-        Navigator.pop(context, true); // Return true to indicate success
+        Navigator.pop(context, true);
       });
     }
 
-    // 2. Handle Login Redirects
-    // If Shopify tries to redirect to a generic login page, 
-    // it means the BuyerIdentity token expired or failed.
     if (url.contains('/account/login') || url.contains('/member-login/')) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Session expired. Please try again.')),
-      );
-      Navigator.pop(context);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Session expired. Please try again.')),
+        );
+        Navigator.pop(context);
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text('Checkout'),
-          leading: IconButton(
-            icon: const Icon(Icons.close),
-            onPressed: () => Navigator.pop(context),
-          ),
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Checkout'),
+        leading: IconButton(
+          icon: const Icon(Icons.close),
+          onPressed: () => Navigator.pop(context),
         ),
-        body: InAppWebView(
-          initialUrlRequest: URLRequest(
-            url: WebUri(widget.checkoutUrl),
+      ),
+      body: Stack(
+        children: [
+          InAppWebView(
+            initialUrlRequest: URLRequest(
+              url: WebUri(widget.checkoutUrl),
+            ),
+            initialSettings: InAppWebViewSettings(
+              // Performance & Core Settings
+              javaScriptEnabled: true,
+              domStorageEnabled: true,
+              cacheEnabled: true,
+              databaseEnabled: true,
+              hardwareAcceleration: true,
+              
+              // Shopify Specifics
+              thirdPartyCookiesEnabled: true,
+              useOnDownloadStart: true,
+              supportZoom: false,
+              
+              // Prevent common Android/iOS lag
+              allowsInlineMediaPlayback: true,
+              isPagingEnabled: false,
+            ),
+            // AT_DOCUMENT_START is much faster than running JS after load
+            initialUserScripts: UnmodifiableListView([
+              UserScript(
+                source: """
+                  var style = document.createElement('style');
+                  style.innerHTML = 'a[href*="myshopify.com"], .step__footer__previous-link { display: none !important; }';
+                  document.head.appendChild(style);
+                """,
+                injectionTime: UserScriptInjectionTime.AT_DOCUMENT_START,
+              ),
+            ]),
+            onWebViewCreated: (controller) {
+              webViewController = controller;
+            },
+            onLoadStart: (controller, url) {
+              setState(() => isLoading = true);
+              if (url != null) handleUrlChanged(url.toString());
+            },
+            onLoadStop: (controller, url) async {
+              setState(() => isLoading = false);
+              if (url != null) handleUrlChanged(url.toString());
+            },
+            onReceivedError: (controller, request, error) {
+              setState(() => isLoading = false);
+            },
           ),
-          initialSettings: InAppWebViewSettings(
-            javaScriptEnabled: true,
-            // Critical for Shopify session persistence:
-            thirdPartyCookiesEnabled: true,
-            domStorageEnabled: true,
-            useOnDownloadStart: true,
-            supportZoom: false,
-          ),
-          onWebViewCreated: (controller) {
-            webViewController = controller;
-          },
-          onUpdateVisitedHistory: (controller, url, androidIsReload) {
-            if (url != null) handleUrlChanged(url.toString());
-          },
-          onPageCommitVisible: (controller, url) {
-            // Hiding elements is fragile because Shopify changes classes often.
-            // In 2025, it's better to target by ARIA labels or simpler CSS if possible.
-            controller.evaluateJavascript(source: """
-              // Example: Hiding the "Return to Store" link if it leads out of the app
-              var backLink = document.querySelector('a[href*="myshopify.com"]');
-              if (backLink) { backLink.style.display = "none"; }
-            """);
-          },
-        ),
+          
+          // Show spinner while Shopify is chugging
+          if (isLoading)
+            const Center(
+              child: CircularProgressIndicator.adaptive(),
+            ),
+        ],
       ),
     );
   }
