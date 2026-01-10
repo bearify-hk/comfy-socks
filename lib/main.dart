@@ -3,10 +3,11 @@ import 'package:comfy_socks/screens/auth_tab.dart';
 import 'package:comfy_socks/screens/blog_tab.dart';
 import 'package:comfy_socks/screens/cart_tab.dart';
 import 'package:comfy_socks/screens/collection_tab.dart';
-import 'package:comfy_socks/screens/order_tab.dart';
-import 'package:comfy_socks/screens/search_tab.dart';
+// import 'package:comfy_socks/screens/order_tab.dart';
+// import 'package:comfy_socks/screens/search_tab.dart';
 import 'package:comfy_socks/services/auth_notifier.dart';
 import 'package:comfy_socks/services/shopify_customer_account_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:shopify_flutter/shopify_flutter.dart';
@@ -14,10 +15,8 @@ import 'screens/home_tab.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
 
   await dotenv.load(fileName: '.env');
-
 
   ShopifyCustomerAccountAuth.initialize(
     clientId: dotenv.env['CUSTOMER_ACCOUNT_API_CLIENT_ID'] ?? '',
@@ -34,7 +33,6 @@ Future<void> main() async {
     language: dotenv.env['COUNTRY_LOCALE'],
   );
 
-
   runApp(const MyApp());
 }
 
@@ -44,10 +42,18 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Shopify Example',
+      title: 'Comfy Socks',
+      themeMode: ThemeMode.light,
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.amber),
-        primaryColor: Colors.amber,
+        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFFFF8C00), brightness: Brightness.light),
+      ),
+
+      darkTheme: ThemeData(
+        useMaterial3: true,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: Colors.orange,
+          brightness: Brightness.dark,
+        ),
       ),
       home: const MyHomePage(),
     );
@@ -62,7 +68,7 @@ class MyHomePage extends StatefulWidget {
 }
 
 class MyHomePageState extends State<MyHomePage> {
-  int _currentIndex = 0;
+  int _selectedIndex = 0;
   late AppLinks _appLinks;
 
   @override
@@ -70,7 +76,6 @@ class MyHomePageState extends State<MyHomePage> {
     super.initState();
     _initDeepLinks(); // Start listening for the redirect
   }
-  
 
   void _initDeepLinks() {
     _appLinks = AppLinks();
@@ -91,15 +96,17 @@ class MyHomePageState extends State<MyHomePage> {
     if (uri.host == 'callback' || uri.path.contains('callback')) {
       try {
         final auth = ShopifyCustomerAccountAuth.instance;
-        
+
         // This exchanges the 'code' for an 'accessToken' inside your service
         await auth.handleCallback(uri);
-        
+
         // THIS IS WHAT YOU MISSED:
         // Notify the UI that the auth state has changed
         AuthNotifier.instance.notifyAuthStateChanged();
-        
-        print("Login Successful!");
+
+        if (kDebugMode) {
+          print("Login Successful!");
+        }
       } catch (e) {
         print("Auth Callback Error: $e");
       }
@@ -113,45 +120,44 @@ class MyHomePageState extends State<MyHomePage> {
     // const ShopTab(),
     const BlogTab(),
     const CartTab(),
-    const OrderTab(),
+    // const OrderTab(),
     const CustomerAccountAuthTab(),
   ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: IndexedStack(index: _currentIndex, children: tabs),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        onTap: _onNavigationBarItemClick,
-        fixedColor: Theme.of(context).primaryColor,
-        unselectedItemColor: Colors.black,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-          BottomNavigationBarItem(
+      body: IndexedStack(index: _selectedIndex, children: tabs),
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _selectedIndex,
+        onDestinationSelected: _onNavigationDestinationSelected,
+        destinations: const [
+          NavigationDestination(icon: Icon(Icons.home), label: 'Home'),
+          NavigationDestination(
             icon: Icon(Icons.category_outlined),
             label: 'Collections',
           ),
-          // BottomNavigationBarItem(icon: Icon(Icons.search), label: 'Search'),
-          //BottomNavigationBarItem(icon: Icon(Icons.shopify), label: 'Shop'),
-          BottomNavigationBarItem(
+          NavigationDestination(
             icon: Icon(Icons.article_outlined),
             label: 'Blog',
           ),
-          BottomNavigationBarItem(
+          NavigationDestination(
             icon: Icon(Icons.shopping_cart_outlined),
             label: 'Cart',
           ),
-          BottomNavigationBarItem(icon: Icon(Icons.history), label: 'Orders'),
-          BottomNavigationBarItem(icon: Icon(Icons.manage_accounts_outlined), label: 'Login'),
+          // BottomNavigationBarItem(icon: Icon(Icons.history), label: 'Orders'),
+          NavigationDestination(
+            icon: Icon(Icons.manage_accounts_outlined),
+            label: 'Login',
+          ),
         ],
       ),
     );
   }
 
-  void _onNavigationBarItemClick(int index) {
+  void _onNavigationDestinationSelected(int index) {
     setState(() {
-      _currentIndex = index;
+      _selectedIndex = index;
     });
   }
 }
