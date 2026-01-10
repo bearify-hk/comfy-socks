@@ -45,5 +45,52 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+
+    <!-- ============================================== -->
+    <!-- URL Schemes for Deep Links (Shopify Callback) -->
+    <!-- ============================================== -->
+    <key>CFBundleURLTypes</key>
+    <array>
+        <!-- Primary scheme for Shopify Customer Account API -->
+        <!-- Replace YOUR_SHOP_ID with your actual Shopify shop ID -->
+        <dict>
+            <key>CFBundleTypeRole</key>
+            <string>Editor</string>
+            <key>CFBundleURLName</key>
+            <string>com.yourcompany.yourapp.shopify</string>
+            <key>CFBundleURLSchemes</key>
+            <array>
+                <string>shop.73507635488.comfysocks</string>
+            </array>
+        </dict>
+        
+        <!-- Alternative custom scheme (optional) -->
+        <dict>
+            <key>CFBundleTypeRole</key>
+            <string>Editor</string>
+            <key>CFBundleURLName</key>
+            <string>com.yourcompany.yourapp</string>
+            <key>CFBundleURLSchemes</key>
+            <array>
+                <string>myshopifyapp</string>
+            </array>
+        </dict>
+    </array>
+    
+    <!-- ============================================== -->
+    <!-- Allow opening external URLs (for OAuth) -->
+    <!-- ============================================== -->
+    <key>LSApplicationQueriesSchemes</key>
+    <array>
+        <string>https</string>
+        <string>http</string>
+    </array>
+    
+    <!-- Required for url_launcher to open URLs -->
+    <key>NSAppTransportSecurity</key>
+    <dict>
+        <key>NSAllowsArbitraryLoads</key>
+        <true/>
+    </dict>
 </dict>
 </plist>
