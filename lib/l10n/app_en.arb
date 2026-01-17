@@ -1,0 +1,54 @@
+{
+  "@@locale": "en",
+  "featuredProducts": "Featured Products",
+  "home": "Home",
+  "collections": "Collections",
+  "blogs": "Blogs",
+  "cart": "Cart",
+  "account": "Account",
+  "pages": "Pages",
+  "checkout": "Checkout",
+  "estimatedTotal": "Estimated Total",
+  "signInWithEmail": "Sign in with Email",
+  "weWillSendOtp": "We will send a secure one-time code to your email.",
+  "signInToYourAccount": "Sign in to your account",
+  "trackOrdersManageYourProfile": "Track orders, manage your profile, and speed up checkout.",
+  "selectVariant": "Select Variant",
+  "quantity": "Quantity",
+  "addToCart": "Add to Cart",
+  "signOut": "Sign Out",
+  "phone": "Phone",
+  "address": "Address",
+  "email": "Email",
+  "refresh": "Refresh",
+  "articles": "Articles",
+  "noArticlesFound": "No article is found",
+  "qtyColon": "Qty:",
+  "notSet": "Not set",
+  "sessionExpired": "Session expired",
+  "sessionActive": "Session active",
+  "sessionExpiringSoon": "Session expiring soon",
+  "outOfStock": "Out of Stock",
+  "description": "Description",
+  "searchProducts": "Search products...",
+  "yourCartIsEmpty": "Your cart is empty",
+  "articlesCount": "{count} articles",
+  "@articlesCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "opening": "Opening...",  
+  "welcomeBack": "Welcome back, {customerName}!",
+  "@welcomeBack": {
+    "placeholders": {
+      "customerName": {
+        "type": "String"
+      }
+    }
+  },
+  "customer": "Customer",
+  "language": "Language"
+}

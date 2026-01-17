@@ -1,0 +1,47 @@
+{
+  "@@locale": "zh",
+  "featuredProducts": "精選產品",
+  "home": "首頁",
+  "collections": "系列",
+  "blogs": "文章",
+  "cart": "購物車",
+  "account": "帳戶",
+  "pages": "頁面",
+  "checkout": "結帳",
+  "estimatedTotal": "預計總額",
+  "signInWithEmail": "以電郵登入",
+  "weWillSendOtp": "我們將會發送一次性安全驗證碼至您的電郵。",
+  "signInToYourAccount": "登入您的帳戶",
+  "trackOrdersManageYourProfile": "追蹤訂單、管理個人資料，並加快結帳流程。",
+  "selectVariant": "選擇款式",
+  "quantity": "數量",
+  "addToCart": "加入購物車",
+  "signOut": "登出",
+  "phone": "電話",
+  "address": "地址",
+  "email": "電郵",
+  "refresh": "重新整理",
+  "articles": "文章",
+  "noArticlesFound": "沒有文章",
+  "qtyColon": "數量︰",
+  "notSet": "未填寫",
+  "sessionExpired": "登入階段已過期",
+  "sessionActive": "登入階段有效",
+  "sessionExpiringSoon": "登入階段即將過期",
+  "outOfStock": "缺貨中",
+  "description": "描述",
+  "searchProducts": "搜尋貨品…",
+  "yourCartIsEmpty": "購物車目前是空的",
+  "articlesCount": "{count} 文章",
+  "@articlesCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "opening": "打開中…",
+  "welcomeBack": "歡迎回來，{customerName}！",
+  "customer": "顧客",
+  "language": "語言"
+}

@@ -1,0 +1,47 @@
+{
+  "@@locale": "zh_Hans",
+  "featuredProducts": "精选产品",
+  "home": "首页",
+  "collections": "系列",
+  "blogs": "文章",
+  "cart": "购物车",
+  "account": "帐户",
+  "pages": "页面",
+  "checkout": "结帐",
+  "estimatedTotal": "预计总额",
+  "signInWithEmail": "以电邮登入",
+  "weWillSendOtp": "我们将会发送一次性安全验证码至您的电邮。",
+  "signInToYourAccount": "登入您的帐户",
+  "trackOrdersManageYourProfile": "追踪订单、管理个人资料，并加快结帐流程。",
+  "selectVariant": "选择款式",
+  "quantity": "数量",
+  "addToCart": "加入购物车",
+  "signOut": "登出",
+  "phone": "电话",
+  "address": "地址",
+  "email": "电邮",
+  "refresh": "重新整理",
+  "articles": "文章",
+  "noArticlesFound": "没有文章",
+  "qtyColon": "数量︰",
+  "notSet": "未填写",
+  "sessionExpired": "登入阶段已过期",
+  "sessionActive": "登入阶段有效",
+  "sessionExpiringSoon": "登入阶段即将过期",
+  "outOfStock": "缺货中",
+  "description": "描述",
+  "searchProducts": "搜寻货品…",
+  "yourCartIsEmpty": "购物车目前是空的",
+  "articlesCount": "{count} 文章",
+  "@articlesCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "opening": "打开中…",
+  "welcomeBack": "欢迎回来，{customerName}！",
+  "customer": "顾客",
+  "language": "语言"
+}
