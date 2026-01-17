@@ -1,3 +1,4 @@
+import 'package:comfy_socks/l10n/app_localizations.dart';
 import 'package:comfy_socks/screens/product_detail_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:shopify_flutter/shopify_flutter.dart';
@@ -33,7 +34,7 @@ class CollectionTabState extends State<CollectionTab> {
   Widget build(BuildContext context) {
     // Material 3 uses large titles and specific elevation behavior
     return Scaffold(
-      appBar: AppBar(title: const Text('Collections'), centerTitle: false),
+      appBar: AppBar(title: Text(AppLocalizations.of(context)!.collections), centerTitle: false),
       body: CustomScrollView(
         slivers: [
           if (_isLoading)
@@ -123,7 +124,7 @@ class CollectionDetailScreen extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Collections'), centerTitle: false),
+      appBar: AppBar(title: Text(AppLocalizations.of(context)!.collections), centerTitle: false),
       body: RefreshIndicator(
         onRefresh: () async {}, // Logic to trigger state reload if needed
         child: CustomScrollView(

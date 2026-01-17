@@ -1,3 +1,4 @@
+import 'package:comfy_socks/l10n/app_localizations.dart';
 import 'package:flutter/material.dart' hide Page;
 import 'package:flutter_widget_from_html/flutter_widget_from_html.dart';
 import 'package:shopify_flutter/shopify_flutter.dart';
@@ -51,7 +52,7 @@ class BlogTabState extends State<BlogTab> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Content'),
+        title: Text(AppLocalizations.of(context)!.articles),
         centerTitle: false,
       ),
       body: Column(
@@ -77,15 +78,15 @@ class BlogTabState extends State<BlogTab> {
       child: SizedBox(
         width: double.infinity,
         child: SegmentedButton<int>(
-          segments: const [
+          segments: [
             ButtonSegment(
               value: 0,
-              label: Text('Blogs'),
+              label: Text(AppLocalizations.of(context)!.blogs),
               icon: Icon(Icons.article_outlined),
             ),
             ButtonSegment(
               value: 1,
-              label: Text('Pages'),
+              label: Text(AppLocalizations.of(context)!.pages),
               icon: Icon(Icons.description_outlined),
             ),
           ],
@@ -113,7 +114,7 @@ class BlogTabState extends State<BlogTab> {
               child: Icon(Icons.rss_feed, color: Theme.of(context).colorScheme.primary),
             ),
             title: Text(blog.title ?? 'Untitled Blog'),
-            subtitle: Text('$articleCount articles'),
+            subtitle: Text(AppLocalizations.of(context)!.articlesCount(articleCount)),
             trailing: const Icon(Icons.chevron_right, size: 20),
             onTap: () => Navigator.push(
               context,
@@ -160,9 +161,9 @@ class ArticlesPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final articles = blog.articles?.articleList ?? [];
     return Scaffold(
-      appBar: AppBar(title: Text(blog.title ?? 'Articles')),
+      appBar: AppBar(title: Text(blog.title ?? AppLocalizations.of(context)!.articles)),
       body: articles.isEmpty
-          ? const _EmptyView(title: 'No articles in this blog')
+          ? _EmptyView(title: AppLocalizations.of(context)!.noArticlesFound)
           : ListView.builder(
               padding: const EdgeInsets.all(16),
               itemCount: articles.length,
@@ -227,7 +228,7 @@ class ArticleDetailScreen extends StatelessWidget {
       body: CustomScrollView(
         slivers: [
           SliverAppBar.large(
-            title: Text(article.title ?? 'Article'),
+            title: Text(article.title ?? AppLocalizations.of(context)!.articles),
           ),
           if (article.image != null)
             SliverToBoxAdapter(

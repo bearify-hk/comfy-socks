@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:comfy_socks/components/product_card.dart';
+import 'package:comfy_socks/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:shopify_flutter/shopify_flutter.dart';
 import 'product_detail_screen.dart';
@@ -135,7 +136,7 @@ class HomeTabState extends State<HomeTab> {
           focusNode: _searchFocusNode,
           onChanged: _onSearchChanged,
           decoration: InputDecoration(
-            hintText: 'Search products...',
+            hintText: AppLocalizations.of(context)!.searchProducts,
             hintStyle: TextStyle(
               color: Colors.grey[400],
               fontSize: 16,
@@ -230,7 +231,7 @@ class HomeTabState extends State<HomeTab> {
             padding: const EdgeInsets.all(16),
             sliver: SliverToBoxAdapter(
               child: Text(
-                _buildProductCountText(products.length),
+                _buildProductCountText(context,products.length),
                 style: TextStyle(
                   color: Colors.grey[600],
                   fontSize: 14,
@@ -263,12 +264,12 @@ class HomeTabState extends State<HomeTab> {
     );
   }
 
-  String _buildProductCountText(int count) {
+  String _buildProductCountText(context, int count) {
     if (_searchQuery.isNotEmpty) {
       return '$count ${count == 1 ? 'Result' : 'Results'} for "$_searchQuery"';
     }
     // return '$count Products';
-    return 'Featured Products';
+    return AppLocalizations.of(context)!.featuredProducts;
   }
 
   Widget _buildSearchEmptyState() {

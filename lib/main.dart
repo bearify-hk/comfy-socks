@@ -1,37 +1,48 @@
+// main.dart
 import 'package:app_links/app_links.dart';
 import 'package:comfy_socks/screens/auth_tab.dart';
 import 'package:comfy_socks/screens/blog_tab.dart';
 import 'package:comfy_socks/screens/cart_tab.dart';
 import 'package:comfy_socks/screens/collection_tab.dart';
-// import 'package:comfy_socks/screens/order_tab.dart';
-// import 'package:comfy_socks/screens/search_tab.dart';
 import 'package:comfy_socks/services/auth_notifier.dart';
+import 'package:comfy_socks/services/cart_service.dart';
+import 'package:comfy_socks/services/locale_notifier.dart';
 import 'package:comfy_socks/services/shopify_customer_account_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:shopify_flutter/shopify_flutter.dart';
 import 'screens/home_tab.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'l10n/app_localizations.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  await LocaleNotifier.instance.initialize();
+
   await dotenv.load(fileName: '.env');
 
+  // Initialize Shopify Customer Account Auth
   ShopifyCustomerAccountAuth.initialize(
     clientId: dotenv.env['CUSTOMER_ACCOUNT_API_CLIENT_ID'] ?? '',
     shopDomain: dotenv.env['STORE_URL'] ?? '',
     redirectUri: dotenv.env['REDIRECT_URI'] ?? '',
   );
 
+  // Initialize Shopify Storefront API config
   ShopifyConfig.setConfig(
     storefrontAccessToken: dotenv.env['STOREFRONT_ACCESS_TOKEN'] ?? '',
     storeUrl: dotenv.env['STORE_URL'] ?? '',
     adminAccessToken: dotenv.env['ADMIN_ACCESS_TOKEN'],
-    storefrontApiVersion: dotenv.env['STOREFRONT_API_VERSION'] ?? '2023-07',
+    storefrontApiVersion: dotenv.env['STOREFRONT_API_VERSION'] ?? '2024-01',
     cachePolicy: CachePolicy.networkOnly,
     language: dotenv.env['COUNTRY_LOCALE'],
   );
+
+  // Initialize services - restore previous sessions
+  await CartService.instance.init();
+  await AuthNotifier.instance.init();
 
   runApp(const MyApp());
 }
@@ -41,21 +52,48 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Comfy Socks',
-      themeMode: ThemeMode.light,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFFFF8C00), brightness: Brightness.light),
-      ),
-
-      darkTheme: ThemeData(
-        useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.orange,
-          brightness: Brightness.dark,
-        ),
-      ),
-      home: const MyHomePage(),
+    return ListenableBuilder(
+      listenable: LocaleNotifier.instance,
+      builder: (context, child) {
+        return MaterialApp(
+          locale: LocaleNotifier.instance.locale,
+          localizationsDelegates: [
+            AppLocalizations.delegate,
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          supportedLocales: [
+            Locale.fromSubtags(
+              languageCode: 'zh',
+              scriptCode: 'Hant',
+              countryCode: 'HK',
+            ),
+            Locale.fromSubtags(
+              languageCode: 'zh',
+              scriptCode: 'Hans',
+              countryCode: 'CN',
+            ),
+            Locale('en'),
+          ],
+          title: 'Comfy Socks',
+          themeMode: ThemeMode.light,
+          theme: ThemeData(
+            colorScheme: ColorScheme.fromSeed(
+              seedColor: const Color(0xFFFF8C00),
+              brightness: Brightness.light,
+            ),
+          ),
+          darkTheme: ThemeData(
+            useMaterial3: true,
+            colorScheme: ColorScheme.fromSeed(
+              seedColor: Colors.orange,
+              brightness: Brightness.dark,
+            ),
+          ),
+          home: const MyHomePage(),
+        );
+      },
     );
   }
 }
@@ -74,7 +112,7 @@ class MyHomePageState extends State<MyHomePage> {
   @override
   void initState() {
     super.initState();
-    _initDeepLinks(); // Start listening for the redirect
+    _initDeepLinks();
   }
 
   void _initDeepLinks() {
@@ -92,23 +130,47 @@ class MyHomePageState extends State<MyHomePage> {
   }
 
   Future<void> _processAuthRedirect(Uri uri) async {
-    // Check if the link is your Shopify callback (e.g., shop.123.app://callback)
+    // Check if the link is your Shopify callback
     if (uri.host == 'callback' || uri.path.contains('callback')) {
       try {
         final auth = ShopifyCustomerAccountAuth.instance;
 
-        // This exchanges the 'code' for an 'accessToken' inside your service
+        // Exchange the 'code' for tokens
         await auth.handleCallback(uri);
 
-        // THIS IS WHAT YOU MISSED:
         // Notify the UI that the auth state has changed
-        AuthNotifier.instance.notifyAuthStateChanged();
+        await AuthNotifier.instance.notifyAuthStateChanged();
 
         if (kDebugMode) {
-          print("Login Successful!");
+          print("Login Successful! Customer: ${auth.customerEmail}");
+        }
+
+        // Show success message
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                AppLocalizations.of(context)!.welcomeBack(
+                  auth.customerEmail ?? AppLocalizations.of(context)!.customer,
+                ),
+              ),
+              backgroundColor: Colors.green,
+            ),
+          );
         }
       } catch (e) {
-        print("Auth Callback Error: $e");
+        if (kDebugMode) {
+          print("Auth Callback Error: $e");
+        }
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Login failed: $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
       }
     }
   }
@@ -116,11 +178,8 @@ class MyHomePageState extends State<MyHomePage> {
   List<Widget> tabs = [
     const HomeTab(),
     const CollectionTab(),
-    // const SearchTab(),
-    // const ShopTab(),
     const BlogTab(),
     const CartTab(),
-    // const OrderTab(),
     const CustomerAccountAuthTab(),
   ];
 
@@ -131,24 +190,26 @@ class MyHomePageState extends State<MyHomePage> {
       bottomNavigationBar: NavigationBar(
         selectedIndex: _selectedIndex,
         onDestinationSelected: _onNavigationDestinationSelected,
-        destinations: const [
-          NavigationDestination(icon: Icon(Icons.home), label: 'Home'),
+        destinations: [
           NavigationDestination(
-            icon: Icon(Icons.category_outlined),
-            label: 'Collections',
+            icon: Icon(Icons.home),
+            label: AppLocalizations.of(context)!.home,
           ),
           NavigationDestination(
-            icon: Icon(Icons.article_outlined),
-            label: 'Blog',
+            icon: const Icon(Icons.category_outlined),
+            label: AppLocalizations.of(context)!.collections,
+          ),
+          NavigationDestination(
+            icon: const Icon(Icons.article_outlined),
+            label: AppLocalizations.of(context)!.blogs,
           ),
           NavigationDestination(
             icon: Icon(Icons.shopping_cart_outlined),
-            label: 'Cart',
+            label: AppLocalizations.of(context)!.cart,
           ),
-          // BottomNavigationBarItem(icon: Icon(Icons.history), label: 'Orders'),
           NavigationDestination(
             icon: Icon(Icons.manage_accounts_outlined),
-            label: 'Login',
+            label: AppLocalizations.of(context)!.account,
           ),
         ],
       ),

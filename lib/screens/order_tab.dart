@@ -1,3 +1,4 @@
+import 'package:comfy_socks/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:shopify_flutter/shopify_flutter.dart';
 
@@ -89,7 +90,7 @@ class _OrderTabState extends State<OrderTab> {
                                         Text(
                                           "Price: ${e.discountedTotalPrice.formattedPrice}",
                                         ),
-                                        Text('Quantity: ${e.currentQuantity}'),
+                                        Text('${AppLocalizations.of(context)!.quantity}: ${e.currentQuantity}'),
                                         Text(
                                             'Original Price: ${e.originalTotalPrice.formattedPrice}'),
                                         Text("Product ID: ${e.productId}")

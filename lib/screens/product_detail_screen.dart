@@ -1,4 +1,5 @@
 import 'dart:developer';
+import 'package:comfy_socks/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:shopify_flutter/models/src/cart/inputs/attribute_input/attribute_input.dart';
 import 'package:shopify_flutter/shopify_flutter.dart';
@@ -114,13 +115,13 @@ class ProductDetailScreenState extends State<ProductDetailScreen> {
 
                   // FIXED: Added null check for description
                   if (product.description!.isNotEmpty) ...[
-                    Text('Description', style: theme.textTheme.titleMedium),
+                    Text(AppLocalizations.of(context)!.description, style: theme.textTheme.titleMedium),
                     const SizedBox(height: 8),
                     Text(product.description ?? '', style: theme.textTheme.bodyMedium),
                     const SizedBox(height: 24),
                   ],
 
-                  Text('Select Variant', style: theme.textTheme.titleMedium),
+                  Text(AppLocalizations.of(context)!.selectVariant, style: theme.textTheme.titleMedium),
                   const SizedBox(height: 12),
                   Wrap(
                     spacing: 8,
@@ -138,7 +139,7 @@ class ProductDetailScreenState extends State<ProductDetailScreen> {
                   
                   const SizedBox(height: 24),
 
-                  Text('Quantity', style: theme.textTheme.titleMedium),
+                  Text(AppLocalizations.of(context)!.quantity, style: theme.textTheme.titleMedium),
                   const SizedBox(height: 12),
                   _QuantitySelector(
                     quantity: quantity,
@@ -192,7 +193,7 @@ class ProductDetailScreenState extends State<ProductDetailScreen> {
         icon: isLoading 
           ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
           : const Icon(Icons.add_shopping_cart),
-        label: Text(isAvailable ? 'Add to Cart' : 'Out of Stock'),
+        label: Text(isAvailable ? AppLocalizations.of(context)!.addToCart : AppLocalizations.of(context)!.outOfStock),
         style: FilledButton.styleFrom(
           minimumSize: const Size.fromHeight(56),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),

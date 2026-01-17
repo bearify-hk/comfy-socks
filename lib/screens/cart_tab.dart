@@ -1,5 +1,6 @@
 // cart_tab.dart
 import 'dart:developer';
+import 'package:comfy_socks/l10n/app_localizations.dart';
 import 'package:comfy_socks/services/cart_service.dart';
 import 'package:flutter/material.dart';
 import 'package:shopify_flutter/shopify_flutter.dart';
@@ -64,7 +65,7 @@ class _CartTabState extends State<CartTab> {
     return Scaffold(
       backgroundColor: colorScheme.surface,
       appBar: AppBar(
-        title: const Text('Cart'),
+        title: Text(AppLocalizations.of(context)!.cart),
         centerTitle: false,
         actions: [
           if (cart != null)
@@ -137,7 +138,7 @@ class _CartTabState extends State<CartTab> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  "Qty: ${line.quantity}",
+                                  "${AppLocalizations.of(context)!.qtyColon} ${line.quantity}",
                                   style: Theme.of(context).textTheme.bodySmall,
                                 ),
                                 const SizedBox(height: 4),
@@ -156,7 +157,9 @@ class _CartTabState extends State<CartTab> {
                                 color: Colors.redAccent,
                               ),
                               onPressed: () {
-                                // Add your logic to remove from cart here
+                                if (line.id != null) {
+                                  cartService.removeFromCart(line.id!);
+                                }
                               },
                             ),
                           ),
@@ -182,8 +185,8 @@ class _CartTabState extends State<CartTab> {
             color: colorScheme.outline,
           ),
           const SizedBox(height: 16),
-          const Text(
-            "Your cart is empty",
+          Text(
+            AppLocalizations.of(context)!.yourCartIsEmpty,
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
           ),
         ],
@@ -205,9 +208,12 @@ class _CartTabState extends State<CartTab> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
-                  "Estimated Total",
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                Text(
+                  AppLocalizations.of(context)!.estimatedTotal,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
                 Text(
                   "${cart.cost!.totalAmount.currencyCode} ${cart.cost!.totalAmount.amount.toStringAsFixed(2)}",
@@ -226,7 +232,7 @@ class _CartTabState extends State<CartTab> {
                 onPressed: cart.checkoutUrl != null
                     ? () => _launchCheckout(cart.checkoutUrl!)
                     : null,
-                child: const Text("Checkout"),
+                child: Text(AppLocalizations.of(context)!.checkout),
               ),
             ),
           ],
