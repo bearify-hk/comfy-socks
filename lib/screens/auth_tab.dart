@@ -174,16 +174,16 @@ class _CustomerAccountAuthTabState extends State<CustomerAccountAuthTab> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Sign Out'),
-        content: const Text('Are you sure you want to sign out?'),
+        title: Text(AppLocalizations.of(context)!.signOut),
+        content: Text(AppLocalizations.of(context)!.confirmSignOut),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
+            child: Text(AppLocalizations.of(context)!.cancel),
           ),
           FilledButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Sign Out'),
+            child: Text(AppLocalizations.of(context)!.signOut),
           ),
         ],
       ),
@@ -612,7 +612,7 @@ class _CustomerAccountAuthTabState extends State<CustomerAccountAuthTab> {
                 icon: Icons.phone_outlined,
                 title: AppLocalizations.of(context)!.phone,
                 subtitle:
-                    _customer?['phoneNumber']?['phoneNumber'] ??
+                    _customer?['defaultAddress']?['phoneNumber'] ??
                     AppLocalizations.of(context)!.notSet,
               ),
               const Divider(height: 1, indent: 56),
