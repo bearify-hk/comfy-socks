@@ -3,6 +3,7 @@
   "featuredProducts": "精选产品",
   "home": "首页",
   "collections": "系列",
+  "info": "資訊",
   "blogs": "文章",
   "cart": "购物车",
   "account": "帐户",
@@ -36,12 +37,31 @@
   "@articlesCount": {
     "placeholders": {
       "count": {
-        "type": "int"
+      "type": "int"
       }
     }
   },
   "opening": "打开中…",
+  "searching": "'搜寻中…",
+  "loadingProducts": "载入货品中…",
+  "cancel": "取消",
+  "signOut": "登出",
+  "confirmSignOut": "确认登出？",
+  "loginFailed": "登入失败。",
   "welcomeBack": "欢迎回来，{customerName}！",
   "customer": "顾客",
-  "language": "语言"
+  "language": "语言",
+  "searchResultsCount": "{count, plural, other{{count} 项「{query}」的搜寻结果}}",
+  "@searchResultsCount": {
+    "description": "显示搜寻结果数量的文字",
+    "placeholders": {
+      "count": {
+        "type": "int",
+        "format": "compact"
+      },
+      "query": {
+        "type": "String"
+      }
+    }
+  }
 }

@@ -4,6 +4,7 @@
   "home": "Home",
   "collections": "Collections",
   "blogs": "Blogs",
+  "info": "Information",
   "cart": "Cart",
   "account": "Account",
   "pages": "Pages",
@@ -41,6 +42,12 @@
     }
   },
   "opening": "Opening...",  
+  "searching": "'Searching...",
+  "loadingProducts": "Loading products...",
+  "cancel": "Cancel",
+  "signOut": "Sign Out",
+  "confirmSignOut": "Are you sure you want to sign out?",
+  "loginFailed": "Login Failed.",
   "welcomeBack": "Welcome back, {customerName}!",
   "@welcomeBack": {
     "placeholders": {
@@ -50,5 +57,18 @@
     }
   },
   "customer": "Customer",
-  "language": "Language"
+  "language": "Language",
+  "searchResultsCount": "{count, plural, =1{1 Result for \"{query}\"} other{{count} Results for \"{query}\"}}",
+  "@searchResultsCount": {
+    "description": "Text displaying the number of search results",
+    "placeholders": {
+      "count": {
+        "type": "int",
+        "format": "compact"
+      },
+      "query": {
+        "type": "String"
+      }
+    }
+  }
 }

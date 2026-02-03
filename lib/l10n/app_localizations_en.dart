@@ -21,6 +21,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get blogs => 'Blogs';
 
   @override
+  String get info => 'Information';
+
+  @override
   String get cart => 'Cart';
 
   @override
@@ -115,6 +118,21 @@ class AppLocalizationsEn extends AppLocalizations {
   String get opening => 'Opening...';
 
   @override
+  String get searching => '\'Searching...';
+
+  @override
+  String get loadingProducts => 'Loading products...';
+
+  @override
+  String get cancel => 'Cancel';
+
+  @override
+  String get confirmSignOut => 'Are you sure you want to sign out?';
+
+  @override
+  String get loginFailed => 'Login Failed.';
+
+  @override
   String welcomeBack(String customerName) {
     return 'Welcome back, $customerName!';
   }
@@ -124,4 +142,20 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get language => 'Language';
+
+  @override
+  String searchResultsCount(int count, String query) {
+    final intl.NumberFormat countNumberFormat = intl.NumberFormat.compact(
+      locale: localeName,
+    );
+    final String countString = countNumberFormat.format(count);
+
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$countString Results for \"$query\"',
+      one: '1 Result for \"$query\"',
+    );
+    return '$_temp0';
+  }
 }

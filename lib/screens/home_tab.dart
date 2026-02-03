@@ -68,7 +68,7 @@ class HomeTabState extends State<HomeTab> {
       final shopifyStore = ShopifyStore.instance;
       final searchResults = await shopifyStore.searchProducts(
         searchKeyword,
-        limit: 10,
+        limit: 250,
       );
 
       if (mounted) {
@@ -201,7 +201,7 @@ class HomeTabState extends State<HomeTab> {
             ),
             const SizedBox(height: 16),
             Text(
-              _searchQuery.isNotEmpty ? 'Searching...' : 'Loading products...',
+              _searchQuery.isNotEmpty ? AppLocalizations.of(context)!.searching : AppLocalizations.of(context)!.loadingProducts,
               style: const TextStyle(color: Colors.grey, fontSize: 14),
             ),
           ],
@@ -266,7 +266,7 @@ class HomeTabState extends State<HomeTab> {
 
   String _buildProductCountText(context, int count) {
     if (_searchQuery.isNotEmpty) {
-      return '$count ${count == 1 ? 'Result' : 'Results'} for "$_searchQuery"';
+      return AppLocalizations.of(context)!.searchResultsCount(count, _searchQuery);
     }
     // return '$count Products';
     return AppLocalizations.of(context)!.featuredProducts;

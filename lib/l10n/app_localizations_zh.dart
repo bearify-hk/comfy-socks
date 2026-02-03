@@ -21,6 +21,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get blogs => '文章';
 
   @override
+  String get info => '資訊';
+
+  @override
   String get cart => '購物車';
 
   @override
@@ -113,6 +116,21 @@ class AppLocalizationsZh extends AppLocalizations {
   String get opening => '打開中…';
 
   @override
+  String get searching => '\'搜尋中…';
+
+  @override
+  String get loadingProducts => '載入貨品中…';
+
+  @override
+  String get cancel => '取消';
+
+  @override
+  String get confirmSignOut => '確認登出？';
+
+  @override
+  String get loginFailed => '登入失敗。';
+
+  @override
   String welcomeBack(String customerName) {
     return '歡迎回來，$customerName！';
   }
@@ -122,6 +140,21 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get language => '語言';
+
+  @override
+  String searchResultsCount(int count, String query) {
+    final intl.NumberFormat countNumberFormat = intl.NumberFormat.compact(
+      locale: localeName,
+    );
+    final String countString = countNumberFormat.format(count);
+
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$countString 項「$query」的搜尋結果',
+    );
+    return '$_temp0';
+  }
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hans`).
@@ -139,6 +172,9 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get blogs => '文章';
+
+  @override
+  String get info => '資訊';
 
   @override
   String get cart => '购物车';
@@ -233,6 +269,21 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get opening => '打开中…';
 
   @override
+  String get searching => '\'搜寻中…';
+
+  @override
+  String get loadingProducts => '载入货品中…';
+
+  @override
+  String get cancel => '取消';
+
+  @override
+  String get confirmSignOut => '确认登出？';
+
+  @override
+  String get loginFailed => '登入失败。';
+
+  @override
   String welcomeBack(String customerName) {
     return '欢迎回来，$customerName！';
   }
@@ -242,6 +293,21 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get language => '语言';
+
+  @override
+  String searchResultsCount(int count, String query) {
+    final intl.NumberFormat countNumberFormat = intl.NumberFormat.compact(
+      locale: localeName,
+    );
+    final String countString = countNumberFormat.format(count);
+
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$countString 项「$query」的搜寻结果',
+    );
+    return '$_temp0';
+  }
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hant`).
@@ -259,6 +325,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get blogs => '文章';
+
+  @override
+  String get info => '資訊';
 
   @override
   String get cart => '購物車';
@@ -353,6 +422,21 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get opening => '打開中…';
 
   @override
+  String get searching => '\'搜尋中…';
+
+  @override
+  String get loadingProducts => '載入貨品中…';
+
+  @override
+  String get cancel => '取消';
+
+  @override
+  String get confirmSignOut => '確認登出？';
+
+  @override
+  String get loginFailed => '登入失敗。';
+
+  @override
   String welcomeBack(String customerName) {
     return '歡迎回來，$customerName！';
   }
@@ -362,4 +446,19 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get language => '語言';
+
+  @override
+  String searchResultsCount(int count, String query) {
+    final intl.NumberFormat countNumberFormat = intl.NumberFormat.compact(
+      locale: localeName,
+    );
+    final String countString = countNumberFormat.format(count);
+
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$countString 項「$query」的搜尋結果',
+    );
+    return '$_temp0';
+  }
 }

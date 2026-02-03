@@ -124,6 +124,12 @@ abstract class AppLocalizations {
   /// **'Blogs'**
   String get blogs;
 
+  /// No description provided for @info.
+  ///
+  /// In en, this message translates to:
+  /// **'Information'**
+  String get info;
+
   /// No description provided for @cart.
   ///
   /// In en, this message translates to:
@@ -304,6 +310,36 @@ abstract class AppLocalizations {
   /// **'Opening...'**
   String get opening;
 
+  /// No description provided for @searching.
+  ///
+  /// In en, this message translates to:
+  /// **'\'Searching...'**
+  String get searching;
+
+  /// No description provided for @loadingProducts.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading products...'**
+  String get loadingProducts;
+
+  /// No description provided for @cancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get cancel;
+
+  /// No description provided for @confirmSignOut.
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to sign out?'**
+  String get confirmSignOut;
+
+  /// No description provided for @loginFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Login Failed.'**
+  String get loginFailed;
+
   /// No description provided for @welcomeBack.
   ///
   /// In en, this message translates to:
@@ -321,6 +357,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Language'**
   String get language;
+
+  /// Text displaying the number of search results
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 Result for \"{query}\"} other{{count} Results for \"{query}\"}}'**
+  String searchResultsCount(int count, String query);
 }
 
 class _AppLocalizationsDelegate

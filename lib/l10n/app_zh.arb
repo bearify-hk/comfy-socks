@@ -4,6 +4,7 @@
   "home": "首頁",
   "collections": "系列",
   "blogs": "文章",
+  "info": "資訊",
   "cart": "購物車",
   "account": "帳戶",
   "pages": "頁面",
@@ -41,7 +42,26 @@
     }
   },
   "opening": "打開中…",
+  "searching": "'搜尋中…",
+  "loadingProducts": "載入貨品中…",
+  "cancel": "取消",
+  "signOut": "登出",
+  "confirmSignOut": "確認登出？",
+  "loginFailed": "登入失敗。",
   "welcomeBack": "歡迎回來，{customerName}！",
   "customer": "顧客",
-  "language": "語言"
+  "language": "語言",
+  "searchResultsCount": "{count, plural, other{{count} 項「{query}」的搜尋結果}}",
+  "@searchResultsCount": {
+    "description": "顯示搜尋結果數量的文字",
+    "placeholders": {
+      "count": {
+        "type": "int",
+        "format": "compact"
+      },
+      "query": {
+        "type": "String"
+      }
+    }
+  }
 }
