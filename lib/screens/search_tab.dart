@@ -69,7 +69,7 @@ class SearchTabState extends State<SearchTab> {
       final shopifyStore = ShopifyStore.instance;
       final products = await shopifyStore.searchProducts(
         searchKeyword,
-        limit: 4,
+        limit: 250,
         // filters: {
         //   "price": {"min": 500, "max": 1000},
         // },
