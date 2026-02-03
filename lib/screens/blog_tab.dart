@@ -2,6 +2,7 @@ import 'package:comfy_socks/l10n/app_localizations.dart';
 import 'package:flutter/material.dart' hide Page;
 import 'package:flutter_widget_from_html/flutter_widget_from_html.dart';
 import 'package:shopify_flutter/shopify_flutter.dart';
+import 'package:webview_flutter/webview_flutter.dart';
 
 class BlogTab extends StatefulWidget {
   const BlogTab({super.key});
@@ -24,17 +25,52 @@ class BlogTabState extends State<BlogTab> {
   }
 
   Future<void> _fetchData() async {
+    if (!mounted) return;
+
     setState(() {
       _isLoading = true;
       _error = null;
     });
+
     try {
-      final b = await ShopifyBlog.instance.getAllBlogs();
-      final p = await ShopifyPage.instance.getAllPages();
+      // Fetch data in parallel
+      final results = await Future.wait([
+        ShopifyBlog.instance.getAllBlogs(),
+        ShopifyPage.instance.getAllPages(),
+      ]);
+
+      final List<Blog> b = results[0] as List<Blog>? ?? [];
+      final List<Page> p = results[1] as List<Page>? ?? [];
+
+      // The keywords to look for within the titles
+      const blockedKeywords = [
+        'sitemap',
+        'compliance',
+        'review',
+        'about-us',
+        'lookbook',
+        'tolstoy',
+        'html',
+      ];
+
+      final filteredPages = p.where((page) {
+        final titleLower = page.title.trim().toLowerCase();
+
+        // 1. Check if empty
+        if (titleLower.isEmpty) return false;
+
+        // 2. Check if the title contains ANY of the blocked keywords
+        // .any returns true if at least one element matches the condition
+        bool containsBlocked = blockedKeywords.any(
+          (word) => titleLower.contains(word),
+        );
+        return !containsBlocked; // Keep the page only if it DOES NOT contain blocked words
+      }).toList();
+
       if (mounted) {
         setState(() {
-          blogs = b ?? [];
-          pages = p ?? [];
+          blogs = b;
+          pages = filteredPages;
           _isLoading = false;
         });
       }
@@ -62,10 +98,10 @@ class BlogTabState extends State<BlogTab> {
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : _error != null
-                    ? _ErrorView(message: _error!, onRetry: _fetchData)
-                    : _selectedIndex == 0
-                        ? _buildBlogList()
-                        : _buildPagesList(),
+                ? _ErrorView(message: _error!, onRetry: _fetchData)
+                : _selectedIndex == 0
+                ? _buildBlogList()
+                : _buildPagesList(),
           ),
         ],
       ),
@@ -91,7 +127,8 @@ class BlogTabState extends State<BlogTab> {
             ),
           ],
           selected: {_selectedIndex},
-          onSelectionChanged: (set) => setState(() => _selectedIndex = set.first),
+          onSelectionChanged: (set) =>
+              setState(() => _selectedIndex = set.first),
           showSelectedIcon: false,
         ),
       ),
@@ -104,17 +141,23 @@ class BlogTabState extends State<BlogTab> {
       onRefresh: _fetchData,
       child: ListView.separated(
         itemCount: blogs.length,
-        separatorBuilder: (context, index) => const Divider(height: 1, indent: 72),
+        separatorBuilder: (context, index) =>
+            const Divider(height: 1, indent: 72),
         itemBuilder: (context, index) {
           final blog = blogs[index];
           final articleCount = blog.articles?.articleList.length ?? 0;
           return ListTile(
             leading: CircleAvatar(
               backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-              child: Icon(Icons.rss_feed, color: Theme.of(context).colorScheme.primary),
+              child: Icon(
+                Icons.rss_feed,
+                color: Theme.of(context).colorScheme.primary,
+              ),
             ),
             title: Text(blog.title ?? 'Untitled Blog'),
-            subtitle: Text(AppLocalizations.of(context)!.articlesCount(articleCount)),
+            subtitle: Text(
+              AppLocalizations.of(context)!.articlesCount(articleCount),
+            ),
             trailing: const Icon(Icons.chevron_right, size: 20),
             onTap: () => Navigator.push(
               context,
@@ -132,19 +175,27 @@ class BlogTabState extends State<BlogTab> {
       onRefresh: _fetchData,
       child: ListView.separated(
         itemCount: pages.length,
-        separatorBuilder: (context, index) => const Divider(height: 1, indent: 72),
+        separatorBuilder: (context, index) =>
+            const Divider(height: 1, indent: 72),
         itemBuilder: (context, index) {
           final page = pages[index];
           return ListTile(
             leading: CircleAvatar(
-              backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
-              child: Icon(Icons.description, color: Theme.of(context).colorScheme.onSurfaceVariant),
+              backgroundColor: Theme.of(
+                context,
+              ).colorScheme.surfaceContainerHighest,
+              child: Icon(
+                Icons.description,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
             title: Text(page.title),
             trailing: const Icon(Icons.chevron_right, size: 20),
             onTap: () => Navigator.push(
               context,
-              MaterialPageRoute(builder: (c) => PageDetailScreen(handle: page.handle)),
+              MaterialPageRoute(
+                builder: (c) => PageDetailScreen(handle: page.handle),
+              ),
             ),
           );
         },
@@ -161,7 +212,9 @@ class ArticlesPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final articles = blog.articles?.articleList ?? [];
     return Scaffold(
-      appBar: AppBar(title: Text(blog.title ?? AppLocalizations.of(context)!.articles)),
+      appBar: AppBar(
+        title: Text(blog.title ?? AppLocalizations.of(context)!.articles),
+      ),
       body: articles.isEmpty
           ? _EmptyView(title: AppLocalizations.of(context)!.noArticlesFound)
           : ListView.builder(
@@ -174,13 +227,17 @@ class ArticlesPage extends StatelessWidget {
                   clipBehavior: Clip.antiAlias,
                   elevation: 0,
                   shape: RoundedRectangleBorder(
-                    side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant),
+                    side: BorderSide(
+                      color: Theme.of(context).colorScheme.outlineVariant,
+                    ),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: InkWell(
                     onTap: () => Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (c) => ArticleDetailScreen(article: article)),
+                      MaterialPageRoute(
+                        builder: (c) => ArticleDetailScreen(article: article),
+                      ),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -188,7 +245,10 @@ class ArticlesPage extends StatelessWidget {
                         if (article.image != null)
                           AspectRatio(
                             aspectRatio: 16 / 9,
-                            child: Image.network(article.image!.originalSrc, fit: BoxFit.cover),
+                            child: Image.network(
+                              article.image!.originalSrc,
+                              fit: BoxFit.cover,
+                            ),
                           ),
                         Padding(
                           padding: const EdgeInsets.all(16),
@@ -197,7 +257,8 @@ class ArticlesPage extends StatelessWidget {
                             children: [
                               Text(
                                 article.title ?? '',
-                                style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                                style: Theme.of(context).textTheme.titleMedium
+                                    ?.copyWith(fontWeight: FontWeight.bold),
                               ),
                               const SizedBox(height: 4),
                               if (article.publishedAt != null)
@@ -228,18 +289,25 @@ class ArticleDetailScreen extends StatelessWidget {
       body: CustomScrollView(
         slivers: [
           SliverAppBar.large(
-            title: Text(article.title ?? AppLocalizations.of(context)!.articles),
+            title: Text(
+              article.title ?? AppLocalizations.of(context)!.articles,
+            ),
           ),
           if (article.image != null)
             SliverToBoxAdapter(
-              child: Image.network(article.image!.originalSrc, fit: BoxFit.cover),
+              child: Image.network(
+                article.image!.originalSrc,
+                fit: BoxFit.cover,
+              ),
             ),
           SliverPadding(
             padding: const EdgeInsets.all(20),
             sliver: SliverToBoxAdapter(
               child: HtmlWidget(
                 article.contentHtml ?? article.content ?? '',
-                textStyle: Theme.of(context).textTheme.bodyLarge?.copyWith(height: 1.6),
+                textStyle: Theme.of(
+                  context,
+                ).textTheme.bodyLarge?.copyWith(height: 1.6),
               ),
             ),
           ),
@@ -260,36 +328,85 @@ class PageDetailScreen extends StatefulWidget {
 
 class _PageDetailScreenState extends State<PageDetailScreen> {
   Page? page;
-  bool _loading = true;
+  bool _isLoading = true;
+  bool _useWebView = false;
+  WebViewController? _webViewController;
 
   @override
   void initState() {
     super.initState();
-    ShopifyPage.instance.getPageByHandle(widget.handle).then((p) {
-      if (mounted) setState(() { page = p; _loading = false; });
-    });
+    _fetchPage();
+  }
+
+  Future<void> _fetchPage() async {
+    try {
+      final p = await ShopifyPage.instance.getPageByHandle(widget.handle);
+      
+      if (!mounted) return;
+
+      // Check if body content is effectively empty
+      final isBodyEmpty = p?.body == null || p!.body!.trim().isEmpty;
+
+      if (p != null && isBodyEmpty) {
+        _useWebView = true;
+        // Construct URL: https://www.comfy-socks.com/pages/{handle}
+        final url = 'https://www.comfy-socks.com/pages/${p.handle}';
+        
+        _webViewController = WebViewController()
+          ..setJavaScriptMode(JavaScriptMode.unrestricted)
+          ..setBackgroundColor(Colors.white)
+          ..loadRequest(Uri.parse(url));
+      }
+
+      setState(() {
+        page = p;
+        _isLoading = false;
+      });
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    // 1. Loading State
+    if (_isLoading) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    // 2. WebView Mode (if body is empty)
+    if (_useWebView && _webViewController != null) {
+      return Scaffold(
+        appBar: AppBar(
+          title: Text(page?.title ?? 'Page'),
+        ),
+        body: WebViewWidget(controller: _webViewController!),
+      );
+    }
+
+    // 3. Standard HTML Mode
     return Scaffold(
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : CustomScrollView(
-              slivers: [
-                SliverAppBar.large(title: Text(page?.title ?? 'Page')),
-                SliverPadding(
-                  padding: const EdgeInsets.all(20),
-                  sliver: SliverToBoxAdapter(
-                    child: HtmlWidget(
-                      page?.body ?? '',
-                      textStyle: Theme.of(context).textTheme.bodyLarge?.copyWith(height: 1.6),
-                    ),
-                  ),
-                ),
-                const SliverToBoxAdapter(child: SizedBox(height: 40)),
-              ],
+      body: CustomScrollView(
+        slivers: [
+          SliverAppBar.large(title: Text(page?.title ?? 'Page')),
+          SliverPadding(
+            padding: const EdgeInsets.all(20),
+            sliver: SliverToBoxAdapter(
+              child: HtmlWidget(
+                page?.body ?? '',
+                textStyle: Theme.of(
+                  context,
+                ).textTheme.bodyLarge?.copyWith(height: 1.6),
+              ),
             ),
+          ),
+          const SliverToBoxAdapter(child: SizedBox(height: 40)),
+        ],
+      ),
     );
   }
 }
@@ -305,7 +422,11 @@ class _EmptyView extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.layers_clear_outlined, size: 48, color: Theme.of(context).colorScheme.outline),
+          Icon(
+            Icons.layers_clear_outlined,
+            size: 48,
+            color: Theme.of(context).colorScheme.outline,
+          ),
           const SizedBox(height: 16),
           Text(title, style: Theme.of(context).textTheme.bodyLarge),
         ],
@@ -331,7 +452,10 @@ class _ErrorView extends StatelessWidget {
             const SizedBox(height: 16),
             Text(message, textAlign: TextAlign.center),
             const SizedBox(height: 16),
-            FilledButton.tonal(onPressed: onRetry, child: const Text('Try Again')),
+            FilledButton.tonal(
+              onPressed: onRetry,
+              child: const Text('Try Again'),
+            ),
           ],
         ),
       ),
