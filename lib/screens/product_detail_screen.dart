@@ -77,7 +77,8 @@ class ProductDetailScreenState extends State<ProductDetailScreen> {
       await _cartService.addToCart(
         variantId: selectedVariant.id,
         quantity: quantity,
-        attributes: [AttributeInput(key: 'variant_title', value: selectedVariant.title)],
+        // 20260121: no need to add variant title as attribute
+        // attributes: [AttributeInput(key: 'variant_title', value: selectedVariant.title)],
       );
       if (mounted) context.showSnackBar('Added ${product.title} to cart');
     } catch (e) {
