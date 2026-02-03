@@ -46,9 +46,11 @@ class BlogTabState extends State<BlogTab> {
       const blockedKeywords = [
         'sitemap',
         'compliance',
+        '合規性',
         'review',
         'about-us',
         'lookbook',
+        '看看書',
         'tolstoy',
         'html',
       ];
@@ -288,11 +290,27 @@ class ArticleDetailScreen extends StatelessWidget {
     return Scaffold(
       body: CustomScrollView(
         slivers: [
-          SliverAppBar.large(
-            title: Text(
-              article.title ?? AppLocalizations.of(context)!.articles,
+          // 1. Standard SliverAppBar (or .medium/.large with distinct behavior)
+          SliverAppBar(
+            pinned: true,
+            // Only show title in AppBar when collapsed (optional UX choice)
+            // Or use a truncated version here
+            title: Text(article.title ?? 'Article'), 
+          ),
+          
+          // 2. The full title is now part of the scrollable body
+          SliverPadding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+            sliver: SliverToBoxAdapter(
+              child: Text(
+                article.title ?? '',
+                // Use the style usually applied by SliverAppBar.large
+                style: Theme.of(context).textTheme.headlineMedium,
+              ),
             ),
           ),
+
+          // 3. The Image
           if (article.image != null)
             SliverToBoxAdapter(
               child: Image.network(
@@ -300,14 +318,14 @@ class ArticleDetailScreen extends StatelessWidget {
                 fit: BoxFit.cover,
               ),
             ),
+
+          // 4. The Content
           SliverPadding(
             padding: const EdgeInsets.all(20),
             sliver: SliverToBoxAdapter(
               child: HtmlWidget(
                 article.contentHtml ?? article.content ?? '',
-                textStyle: Theme.of(
-                  context,
-                ).textTheme.bodyLarge?.copyWith(height: 1.6),
+                textStyle: Theme.of(context).textTheme.bodyLarge?.copyWith(height: 1.6),
               ),
             ),
           ),
@@ -345,9 +363,9 @@ class _PageDetailScreenState extends State<PageDetailScreen> {
       if (!mounted) return;
 
       // Check if body content is effectively empty
-      final isBodyEmpty = p?.body == null || p!.body!.trim().isEmpty;
+      final isBodyEmpty = p.body.trim().isEmpty;
 
-      if (p != null && isBodyEmpty) {
+      if (isBodyEmpty) {
         _useWebView = true;
         // Construct URL: https://www.comfy-socks.com/pages/{handle}
         final url = 'https://www.comfy-socks.com/pages/${p.handle}';
