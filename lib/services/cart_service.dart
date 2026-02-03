@@ -127,7 +127,7 @@ class CartService {
     for (final line in oldCart.lines) {
       if (line.merchandise?.id != null && line.quantity != null) {
         await addToCart(
-          variantId: line.merchandise!.id!,
+          variantId: line.merchandise!.id,
           quantity: line.quantity!,
         );
       }

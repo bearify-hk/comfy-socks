@@ -83,7 +83,7 @@ class _CollectionListTile extends StatelessWidget {
             : Container(
                 width: 56,
                 height: 56,
-                color: Theme.of(context).colorScheme.surfaceVariant,
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
                 child: const Icon(Icons.grid_view_rounded),
               ),
       ),
