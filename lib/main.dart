@@ -30,14 +30,27 @@ Future<void> main() async {
     redirectUri: dotenv.env['REDIRECT_URI'] ?? '',
   );
 
+  final currentLocale = LocaleNotifier.instance.locale;
+  // print('Current Locale: ${currentLocale.toString()}');
+  String shopifyLanguage = 'en'; // Default
+
+  if (currentLocale != null) {
+    // Map based on your logic: zh_Hans/zh_Hant -> zh, everything else -> en
+    shopifyLanguage =
+        currentLocale.toString() == 'zh_Hant' ||
+            currentLocale.toString() == 'zh_Hans'
+        ? 'zh-TW'
+        : 'en';
+  }
+
   // Initialize Shopify Storefront API config
   ShopifyConfig.setConfig(
     storefrontAccessToken: dotenv.env['STOREFRONT_ACCESS_TOKEN'] ?? '',
     storeUrl: dotenv.env['STORE_URL'] ?? '',
     adminAccessToken: dotenv.env['ADMIN_ACCESS_TOKEN'],
-    storefrontApiVersion: dotenv.env['STOREFRONT_API_VERSION'] ?? '2024-01',
+    storefrontApiVersion: dotenv.env['STOREFRONT_API_VERSION'] ?? '2026-01',
     cachePolicy: CachePolicy.networkOnly,
-    language: dotenv.env['COUNTRY_LOCALE'],
+    language: shopifyLanguage,
   );
 
   // Initialize services - restore previous sessions
@@ -154,6 +167,7 @@ class MyHomePageState extends State<MyHomePage> {
                   auth.customerEmail ?? AppLocalizations.of(context)!.customer,
                 ),
               ),
+              behavior: SnackBarBehavior.floating,
               backgroundColor: Colors.green,
             ),
           );
@@ -166,7 +180,8 @@ class MyHomePageState extends State<MyHomePage> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Login failed: $e'),
+              content: Text(AppLocalizations.of(context)!.loginFailed),
+              behavior: SnackBarBehavior.floating,
               backgroundColor: Colors.red,
             ),
           );
@@ -201,7 +216,7 @@ class MyHomePageState extends State<MyHomePage> {
           ),
           NavigationDestination(
             icon: const Icon(Icons.article_outlined),
-            label: AppLocalizations.of(context)!.blogs,
+            label: AppLocalizations.of(context)!.info,
           ),
           NavigationDestination(
             icon: Icon(Icons.shopping_cart_outlined),
