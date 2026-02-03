@@ -185,7 +185,7 @@ class ShopifyCustomerAccountAuth {
   /// Discover Customer Account API endpoints
   Future<Map<String, dynamic>> discoverApiEndpoints() async {
     if (_apiConfig != null) return _apiConfig!;
-    
+
     final response = await http.get(
       Uri.parse('https://$shopDomain/.well-known/customer-account-api'),
     );
@@ -483,27 +483,43 @@ class ShopifyCustomerAccountAuth {
   // ============ Logout ============
 
   /// Log out the current customer
+  /// Log out the current customer (mobile-friendly version)
   Future<void> logout({String? postLogoutRedirectUri}) async {
     try {
       final config = await discoverAuthEndpoints();
 
-      if (_idToken != null) {
-        final logoutUrl = Uri.parse(config['end_session_endpoint']).replace(
-          queryParameters: {
-            'id_token_hint': _idToken!,
-            if (postLogoutRedirectUri != null)
-              'post_logout_redirect_uri': postLogoutRedirectUri,
-          },
-        );
-
-        // For mobile, open the logout URL
-        if (await canLaunchUrl(logoutUrl)) {
-          await launchUrl(logoutUrl, mode: LaunchMode.externalApplication);
-        }
+      if (_idToken == null) {
+        // No id_token → nothing to log out on Shopify side
+        await _clearPersistedTokens();
+        return;
       }
+
+      final logoutUri = Uri.parse(config['end_session_endpoint']).replace(
+        queryParameters: {
+          'id_token_hint': _idToken!,
+          // You can still include this, but for mobile it is usually ignored
+          if (postLogoutRedirectUri != null)
+            'post_logout_redirect_uri': postLogoutRedirectUri,
+        },
+      );
+
+      // Important: Use plain http GET – do NOT launch in browser
+      final response = await http.get(logoutUri);
+
+      if (response.statusCode != 200) {
+        // Log but don't throw – we still want to clear local session
+        print(
+          'Shopify logout returned ${response.statusCode}: ${response.body}',
+        );
+      }
+    } catch (e) {
+      print('Error during Shopify logout: $e');
+      // Still continue to clear local data
     } finally {
-      // Always clear local tokens regardless of logout API result
+      // Always clear local tokens – this is the most important part
       await _clearPersistedTokens();
+      // Optionally: navigate to login/home screen via your app's router
+      // e.g. Navigator.pushReplacementNamed(context, '/login');
     }
   }
 
@@ -525,10 +541,7 @@ class ShopifyCustomerAccountAuth {
 
     final response = await http.post(
       Uri.parse(apiConfig['graphql_api']),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': token,
-      },
+      headers: {'Content-Type': 'application/json', 'Authorization': token},
       body: jsonEncode({
         'query': graphqlQuery,
         if (operationName != null) 'operationName': operationName,
@@ -578,12 +591,10 @@ class ShopifyCustomerAccountAuth {
           emailAddress {
             emailAddress
           }
-          phoneNumber {
-            phoneNumber
-          }
           defaultAddress {
             id
             formatted
+            phoneNumber
           }
         }
       }
