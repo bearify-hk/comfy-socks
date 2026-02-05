@@ -49,9 +49,11 @@ class BlogTabState extends State<BlogTab> {
         '合規性',
         'review',
         'about-us',
+        '關於我們',
         'lookbook',
         '看看書',
         'tolstoy',
+        '托爾斯泰',
         'html',
       ];
 
