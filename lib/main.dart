@@ -15,6 +15,7 @@ import 'package:shopify_flutter/shopify_flutter.dart';
 import 'screens/home_tab.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'l10n/app_localizations.dart';
+import 'package:provider/provider.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -57,7 +58,16 @@ Future<void> main() async {
   await CartService.instance.init();
   await AuthNotifier.instance.init();
 
-  runApp(const MyApp());
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider.value(value: LocaleNotifier.instance),
+        ChangeNotifierProvider.value(value: AuthNotifier.instance),
+        // Add CartService here if it extends ChangeNotifier
+      ],
+      child: const MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
@@ -65,11 +75,13 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final localeNotifier = context.watch<LocaleNotifier>();
+
     return ListenableBuilder(
       listenable: LocaleNotifier.instance,
       builder: (context, child) {
         return MaterialApp(
-          locale: LocaleNotifier.instance.locale,
+          locale: localeNotifier.locale,
           localizationsDelegates: [
             AppLocalizations.delegate,
             GlobalMaterialLocalizations.delegate,
@@ -104,7 +116,7 @@ class MyApp extends StatelessWidget {
               brightness: Brightness.dark,
             ),
           ),
-          home: const MyHomePage(),
+          home: MyHomePage(key: ValueKey(localeNotifier.locale)),
         );
       },
     );
