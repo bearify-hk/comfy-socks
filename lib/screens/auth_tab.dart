@@ -49,7 +49,7 @@ class _CustomerAccountAuthTabState extends State<CustomerAccountAuthTab> {
       // Check if we have a valid session
       if (_auth.isAuthenticated) {
         await _loadCustomer();
-      } else if (_auth.hasRefreshableSession) {
+      } else if (_auth.refreshToken != null) {
         // Try to refresh the token if we have a refresh token
         try {
           await _auth.refreshAccessToken();
