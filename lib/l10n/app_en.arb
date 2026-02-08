@@ -45,7 +45,6 @@
   "searching": "'Searching...",
   "loadingProducts": "Loading products...",
   "cancel": "Cancel",
-  "signOut": "Sign Out",
   "confirmSignOut": "Are you sure you want to sign out?",
   "loginFailed": "Login Failed.",
   "welcomeBack": "Welcome back, {customerName}!",
@@ -68,6 +67,16 @@
       },
       "query": {
         "type": "String"
+      }
+    }
+  },
+  "addedToCart": "Added {productTitle} to cart",
+  "@addedToCart": {
+    "description": "Message shown when a product is added to the cart",
+    "placeholders": {
+      "productTitle": {
+        "type": "String",
+        "example": "iPhone 15"
       }
     }
   }

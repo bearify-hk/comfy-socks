@@ -155,6 +155,11 @@ class AppLocalizationsZh extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String addedToCart(String productTitle) {
+    return '已將 $productTitle 加入購物車';
+  }
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hans`).
@@ -308,6 +313,11 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
     );
     return '$_temp0';
   }
+
+  @override
+  String addedToCart(String productTitle) {
+    return '已将 $productTitle 加入购物车';
+  }
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hant`).
@@ -460,5 +470,10 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
       other: '$countString 項「$query」的搜尋結果',
     );
     return '$_temp0';
+  }
+
+  @override
+  String addedToCart(String productTitle) {
+    return '已將 $productTitle 加入購物車';
   }
 }

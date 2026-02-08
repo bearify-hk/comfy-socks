@@ -37,7 +37,7 @@
   "@articlesCount": {
     "placeholders": {
       "count": {
-      "type": "int"
+        "type": "int"
       }
     }
   },
@@ -45,7 +45,6 @@
   "searching": "'搜寻中…",
   "loadingProducts": "载入货品中…",
   "cancel": "取消",
-  "signOut": "登出",
   "confirmSignOut": "确认登出？",
   "loginFailed": "登入失败。",
   "welcomeBack": "欢迎回来，{customerName}！",
@@ -61,6 +60,16 @@
       },
       "query": {
         "type": "String"
+      }
+    }
+  },
+  "addedToCart": "已将 {productTitle} 加入购物车",
+  "@addedToCart": {
+    "description": "产品加入购物车时显示的讯息",
+    "placeholders": {
+      "productTitle": {
+        "type": "String",
+        "example": "iPhone 15"
       }
     }
   }

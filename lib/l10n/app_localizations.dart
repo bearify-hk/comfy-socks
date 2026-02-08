@@ -363,6 +363,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{count, plural, =1{1 Result for \"{query}\"} other{{count} Results for \"{query}\"}}'**
   String searchResultsCount(int count, String query);
+
+  /// Message shown when a product is added to the cart
+  ///
+  /// In en, this message translates to:
+  /// **'Added {productTitle} to cart'**
+  String addedToCart(String productTitle);
 }
 
 class _AppLocalizationsDelegate

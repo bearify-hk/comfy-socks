@@ -158,4 +158,9 @@ class AppLocalizationsEn extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String addedToCart(String productTitle) {
+    return 'Added $productTitle to cart';
+  }
 }
