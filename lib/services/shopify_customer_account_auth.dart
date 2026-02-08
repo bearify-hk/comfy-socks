@@ -1,17 +1,16 @@
-// shopify_customer_account_auth.dart
+// services/shopify_customer_account_auth.dart
 
 import 'dart:convert';
 import 'dart:math';
 import 'package:crypto/crypto.dart';
+import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
-/// Shopify Customer Account API Authentication Service
-///
-/// This implements OAuth 2.0 with PKCE for public clients (mobile apps)
-/// as specified in Shopify's Customer Account API documentation.
-class ShopifyCustomerAccountAuth {
+/// Shopify Service handling Authentication (Customer Account API)
+/// and Shopping Cart (Storefront API).
+class ShopifyCustomerAccountAuth extends ChangeNotifier {
   static ShopifyCustomerAccountAuth? _instance;
 
   static ShopifyCustomerAccountAuth get instance {
@@ -23,23 +22,35 @@ class ShopifyCustomerAccountAuth {
     return _instance!;
   }
 
+  /// Initialize the service.
+  ///
+  /// [storefrontAccessToken] is required for Cart operations.
+  /// You can find this in Shopify Admin -> Headless -> Your Storefront -> API Credentials.
   static void initialize({
     required String shopDomain,
     required String clientId,
     required String redirectUri,
+    required String storefrontAccessToken,
+    String storefrontApiVersion = '2025-01',
   }) {
+    if (_instance != null) return;
+
     _instance = ShopifyCustomerAccountAuth._(
       shopDomain: shopDomain,
       clientId: clientId,
       redirectUri: redirectUri,
+      storefrontAccessToken: storefrontAccessToken,
+      storefrontApiVersion: storefrontApiVersion,
     );
   }
 
   static bool get isInitialized => _instance != null;
 
-  final String shopDomain; // e.g., 'your-store.myshopify.com'
+  final String shopDomain;
   final String clientId;
-  final String redirectUri; // e.g., 'shop.YOUR_SHOP_ID.app://callback'
+  final String redirectUri;
+  final String storefrontAccessToken;
+  final String storefrontApiVersion;
 
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
 
@@ -49,6 +60,8 @@ class ShopifyCustomerAccountAuth {
   static const String _idTokenKey = 'shopify_id_token';
   static const String _tokenExpiresAtKey = 'shopify_token_expires_at';
   static const String _customerIdKey = 'shopify_customer_id';
+  static const String _cartIdKey =
+      'shopify_cart_id'; // New key for persisting cart
 
   String? _codeVerifier;
   String? _state;
@@ -58,12 +71,15 @@ class ShopifyCustomerAccountAuth {
   Map<String, dynamic>? _authConfig;
   Map<String, dynamic>? _apiConfig;
 
-  // Token storage (now persisted to secure storage)
+  // Token storage
   String? _accessToken;
   String? _refreshToken;
   String? _idToken;
   DateTime? _tokenExpiresAt;
   String? _customerId;
+
+  // Cart storage
+  String? _cartId;
 
   // Public getters
   String? get accessToken => _accessToken;
@@ -71,63 +87,57 @@ class ShopifyCustomerAccountAuth {
   String? get idToken => _idToken;
   DateTime? get tokenExpiresAt => _tokenExpiresAt;
   String? get customerId => _customerId;
+  String? get cartId => _cartId;
 
-  /// Check if user is currently authenticated
   bool get isAuthenticated => _accessToken != null && !isTokenExpired;
-
-  /// Check if we have tokens that might be refreshable
-  bool get hasRefreshableSession => _refreshToken != null;
 
   ShopifyCustomerAccountAuth._({
     required this.shopDomain,
     required this.clientId,
     required this.redirectUri,
+    required this.storefrontAccessToken,
+    required this.storefrontApiVersion,
   });
 
   // ============ Initialization & Persistence ============
 
-  /// Initialize the auth service and restore any saved session
-  /// Call this when the app starts
   Future<bool> init() async {
     try {
-      // Restore tokens from secure storage
+      // Restore auth tokens
       _accessToken = await _secureStorage.read(key: _accessTokenKey);
       _refreshToken = await _secureStorage.read(key: _refreshTokenKey);
       _idToken = await _secureStorage.read(key: _idTokenKey);
       _customerId = await _secureStorage.read(key: _customerIdKey);
+
+      // Restore cart ID
+      _cartId = await _secureStorage.read(key: _cartIdKey);
 
       final expiresAtStr = await _secureStorage.read(key: _tokenExpiresAtKey);
       if (expiresAtStr != null) {
         _tokenExpiresAt = DateTime.tryParse(expiresAtStr);
       }
 
-      // If we have an access token, check if it's valid or needs refresh
       if (_accessToken != null) {
         if (isTokenExpired && _refreshToken != null) {
-          // Try to refresh the token
           try {
             await refreshAccessToken();
             return true;
           } catch (e) {
-            // Refresh failed, clear everything
             await _clearPersistedTokens();
             return false;
           }
         } else if (!isTokenExpired) {
-          // Token is still valid
           return true;
         }
       }
 
       return false;
     } catch (e) {
-      // Any error during init means we're not authenticated
       await _clearPersistedTokens();
       return false;
     }
   }
 
-  /// Persist tokens to secure storage
   Future<void> _persistTokens() async {
     if (_accessToken != null) {
       await _secureStorage.write(key: _accessTokenKey, value: _accessToken);
@@ -138,83 +148,87 @@ class ShopifyCustomerAccountAuth {
     if (_idToken != null) {
       await _secureStorage.write(key: _idTokenKey, value: _idToken);
     }
+    if (_customerId != null) {
+      await _secureStorage.write(key: _customerIdKey, value: _customerId);
+    }
     if (_tokenExpiresAt != null) {
       await _secureStorage.write(
         key: _tokenExpiresAtKey,
         value: _tokenExpiresAt!.toIso8601String(),
       );
     }
-    if (_customerId != null) {
-      await _secureStorage.write(key: _customerIdKey, value: _customerId);
+  }
+
+  Future<void> _persistCartId() async {
+    if (_cartId != null) {
+      await _secureStorage.write(key: _cartIdKey, value: _cartId);
+      notifyListeners(); // 2. Notify when cart ID is set
     }
   }
 
-  /// Clear all persisted tokens
   Future<void> _clearPersistedTokens() async {
     await _secureStorage.delete(key: _accessTokenKey);
     await _secureStorage.delete(key: _refreshTokenKey);
     await _secureStorage.delete(key: _idTokenKey);
     await _secureStorage.delete(key: _tokenExpiresAtKey);
     await _secureStorage.delete(key: _customerIdKey);
+    // Note: We usually DO NOT clear the cart ID on logout, allowing guest checkout continuation
 
     _accessToken = null;
     _refreshToken = null;
     _idToken = null;
     _tokenExpiresAt = null;
     _customerId = null;
+
+    notifyListeners(); // 2. Notify when cart ID is set
   }
 
-  // ============ Discovery Endpoints ============
+  /// Clear the cart (e.g., after successful checkout)
+  Future<void> clearCart() async {
+    await _secureStorage.delete(key: _cartIdKey);
+    _cartId = null;
 
-  /// Discover OpenID configuration endpoints
+    notifyListeners(); // 2. Notify when cart ID is set
+  }
+
+  // ============ Discovery Endpoints (Customer Account API) ============
+
   Future<Map<String, dynamic>> discoverAuthEndpoints() async {
     if (_authConfig != null) return _authConfig!;
-
     final response = await http.get(
       Uri.parse('https://$shopDomain/.well-known/openid-configuration'),
     );
-
-    if (response.statusCode != 200) {
-      throw Exception('Failed to discover auth endpoints: ${response.body}');
-    }
-
+    if (response.statusCode != 200)
+      throw Exception('Failed to discover auth endpoints');
     _authConfig = jsonDecode(response.body);
     return _authConfig!;
   }
 
-  /// Discover Customer Account API endpoints
   Future<Map<String, dynamic>> discoverApiEndpoints() async {
     if (_apiConfig != null) return _apiConfig!;
-
     final response = await http.get(
       Uri.parse('https://$shopDomain/.well-known/customer-account-api'),
     );
-
-    if (response.statusCode != 200) {
-      throw Exception('Failed to discover API endpoints: ${response.body}');
-    }
-
+    if (response.statusCode != 200)
+      throw Exception('Failed to discover API endpoints');
     _apiConfig = jsonDecode(response.body);
     return _apiConfig!;
   }
 
   // ============ PKCE Helpers ============
 
-  /// Generate a cryptographically secure code verifier
   String _generateCodeVerifier() {
     final random = Random.secure();
     final bytes = List<int>.generate(32, (_) => random.nextInt(256));
     return base64Url.encode(bytes).replaceAll('=', '');
   }
 
-  /// Generate code challenge from verifier using SHA-256
   String _generateCodeChallenge(String verifier) {
     final bytes = ascii.encode(verifier);
     final digest = sha256.convert(bytes);
     return base64Url.encode(digest.bytes).replaceAll('=', '');
   }
 
-  /// Generate state parameter for CSRF protection
   String _generateState() {
     final timestamp = DateTime.now().millisecondsSinceEpoch.toString();
     final random = Random.secure();
@@ -225,7 +239,6 @@ class ShopifyCustomerAccountAuth {
     return '$timestamp$randomString';
   }
 
-  /// Generate nonce for replay attack prevention
   String _generateNonce([int length = 32]) {
     const chars =
         'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
@@ -238,17 +251,14 @@ class ShopifyCustomerAccountAuth {
 
   // ============ Authorization Flow ============
 
-  /// Start the authorization flow - opens Shopify's login page
   Future<Uri> getAuthorizationUrl({String? locale}) async {
     final config = await discoverAuthEndpoints();
-
     _codeVerifier = _generateCodeVerifier();
     _state = _generateState();
     _nonce = _generateNonce();
-
     final codeChallenge = _generateCodeChallenge(_codeVerifier!);
 
-    final authUrl = Uri.parse(config['authorization_endpoint']).replace(
+    return Uri.parse(config['authorization_endpoint']).replace(
       queryParameters: {
         'scope': 'openid email customer-account-api:full',
         'client_id': clientId,
@@ -261,15 +271,10 @@ class ShopifyCustomerAccountAuth {
         if (locale != null) 'ui_locales': locale,
       },
     );
-
-    return authUrl;
   }
 
-  /// Launch the authorization URL in a browser
   Future<void> launchAuthorization({String? locale}) async {
     final authUrl = await getAuthorizationUrl(locale: locale);
-
-    // Persist PKCE values before leaving the app
     await _secureStorage.write(key: 'code_verifier', value: _codeVerifier);
     await _secureStorage.write(key: 'auth_state', value: _state);
     await _secureStorage.write(key: 'auth_nonce', value: _nonce);
@@ -281,102 +286,70 @@ class ShopifyCustomerAccountAuth {
     }
   }
 
-  /// Handle the callback from the authorization redirect
   Future<void> handleCallback(Uri callbackUri) async {
     final code = callbackUri.queryParameters['code'];
     final returnedState = callbackUri.queryParameters['state'];
     final error = callbackUri.queryParameters['error'];
-    final errorDescription = callbackUri.queryParameters['error_description'];
 
-    if (error != null) {
-      throw Exception('Authorization error: $error - $errorDescription');
-    }
+    if (error != null) throw Exception('Authorization error: $error');
+    if (code == null) throw Exception('No authorization code received');
 
-    if (code == null) {
-      throw Exception('No authorization code received');
-    }
-
-    // Restore PKCE values if app was killed
     _codeVerifier ??= await _secureStorage.read(key: 'code_verifier');
     _state ??= await _secureStorage.read(key: 'auth_state');
     _nonce ??= await _secureStorage.read(key: 'auth_nonce');
 
-    // Verify state to prevent CSRF
-    if (returnedState != _state) {
-      throw Exception('State mismatch - possible CSRF attack');
-    }
+    if (returnedState != _state) throw Exception('State mismatch');
 
     await _exchangeCodeForTokens(code);
 
-    // Clean up stored PKCE values
     await _secureStorage.delete(key: 'code_verifier');
     await _secureStorage.delete(key: 'auth_state');
     await _secureStorage.delete(key: 'auth_nonce');
   }
 
-  /// Exchange authorization code for access tokens
   Future<void> _exchangeCodeForTokens(String code) async {
     final config = await discoverAuthEndpoints();
-
-    if (_codeVerifier == null) {
-      throw Exception(
-        'Code verifier not found - authorization flow not started',
-      );
-    }
-
-    // Build the request body
-    final bodyParams = {
-      'grant_type': 'authorization_code',
-      'client_id': clientId,
-      'redirect_uri': redirectUri,
-      'code': code,
-      'code_verifier': _codeVerifier!,
-    };
+    if (_codeVerifier == null) throw Exception('Code verifier not found');
 
     final response = await http.post(
       Uri.parse(config['token_endpoint']),
       headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-      body: bodyParams,
+      body: {
+        'grant_type': 'authorization_code',
+        'client_id': clientId,
+        'redirect_uri': redirectUri,
+        'code': code,
+        'code_verifier': _codeVerifier!,
+      },
     );
 
-    if (response.statusCode != 200) {
+    if (response.statusCode != 200)
       throw Exception('Token exchange failed: ${response.body}');
-    }
 
     final tokenData = jsonDecode(response.body);
     await _storeTokens(tokenData);
 
-    // Verify nonce from id_token
     if (_nonce != null && tokenData['id_token'] != null) {
       final idTokenNonce = _extractNonceFromIdToken(tokenData['id_token']);
-      if (idTokenNonce != _nonce) {
-        throw Exception('Nonce mismatch - possible replay attack');
-      }
+      if (idTokenNonce != _nonce) throw Exception('Nonce mismatch');
     }
 
-    // Extract customer ID from id_token
     _customerId = _extractCustomerIdFromIdToken(tokenData['id_token']);
     await _persistTokens();
-
-    // Clear PKCE values
     _codeVerifier = null;
     _state = null;
     _nonce = null;
   }
 
-  /// Store tokens from response and persist them
   Future<void> _storeTokens(Map<String, dynamic> tokenData) async {
     _accessToken = tokenData['access_token'];
     _refreshToken = tokenData['refresh_token'];
     _idToken = tokenData['id_token'];
-
     final expiresIn = tokenData['expires_in'] as int;
     _tokenExpiresAt = DateTime.now().add(Duration(seconds: expiresIn));
-
     await _persistTokens();
   }
 
-  /// Extract nonce from id_token JWT
   String? _extractNonceFromIdToken(String token) {
     try {
       final claims = _decodeJwtPayload(token);
@@ -386,18 +359,15 @@ class ShopifyCustomerAccountAuth {
     }
   }
 
-  /// Extract customer ID from id_token JWT
   String? _extractCustomerIdFromIdToken(String token) {
     try {
       final claims = _decodeJwtPayload(token);
-      // The 'sub' claim contains the customer ID
       return claims?['sub'];
     } catch (e) {
       return null;
     }
   }
 
-  /// Extract email from id_token JWT
   String? get customerEmail {
     if (_idToken == null) return null;
     try {
@@ -408,12 +378,10 @@ class ShopifyCustomerAccountAuth {
     }
   }
 
-  /// Decode JWT payload
   Map<String, dynamic>? _decodeJwtPayload(String token) {
     try {
       final parts = token.split('.');
       if (parts.length != 3) return null;
-
       final payload = parts[1];
       final normalized = base64Url.normalize(payload);
       final decoded = utf8.decode(base64Url.decode(normalized));
@@ -425,23 +393,16 @@ class ShopifyCustomerAccountAuth {
 
   // ============ Token Refresh ============
 
-  /// Check if access token is expired
   bool get isTokenExpired {
     if (_tokenExpiresAt == null) return true;
-    // Consider token expired 60 seconds before actual expiry for safety
     return DateTime.now().isAfter(
       _tokenExpiresAt!.subtract(const Duration(seconds: 60)),
     );
   }
 
-  /// Refresh the access token
   Future<void> refreshAccessToken() async {
-    if (_refreshToken == null) {
-      throw Exception('No refresh token available');
-    }
-
+    if (_refreshToken == null) throw Exception('No refresh token available');
     final config = await discoverAuthEndpoints();
-
     final response = await http.post(
       Uri.parse(config['token_endpoint']),
       headers: {'Content-Type': 'application/x-www-form-urlencoded'},
@@ -453,84 +414,55 @@ class ShopifyCustomerAccountAuth {
     );
 
     if (response.statusCode != 200) {
-      // Refresh token might be expired, clear everything
       await _clearPersistedTokens();
-      throw Exception('Token refresh failed: ${response.body}');
+      throw Exception('Token refresh failed');
     }
-
     final tokenData = jsonDecode(response.body);
     await _storeTokens(tokenData);
   }
 
-  /// Get a valid access token, refreshing if necessary
   Future<String> getValidAccessToken() async {
-    if (_accessToken == null) {
-      throw Exception('Not authenticated');
-    }
-
+    if (_accessToken == null) throw Exception('Not authenticated');
     if (isTokenExpired) {
       if (_refreshToken != null) {
         await refreshAccessToken();
       } else {
         await _clearPersistedTokens();
-        throw Exception('Session expired - please login again');
+        throw Exception('Session expired');
       }
     }
-
     return _accessToken!;
   }
 
   // ============ Logout ============
 
-  /// Log out the current customer
-  /// Log out the current customer (mobile-friendly version)
   Future<void> logout({String? postLogoutRedirectUri}) async {
     try {
       final config = await discoverAuthEndpoints();
-
-      if (_idToken == null) {
-        // No id_token → nothing to log out on Shopify side
-        await _clearPersistedTokens();
-        return;
-      }
-
-      final logoutUri = Uri.parse(config['end_session_endpoint']).replace(
-        queryParameters: {
-          'id_token_hint': _idToken!,
-          // You can still include this, but for mobile it is usually ignored
-          if (postLogoutRedirectUri != null)
-            'post_logout_redirect_uri': postLogoutRedirectUri,
-        },
-      );
-
-      // Important: Use plain http GET – do NOT launch in browser
-      final response = await http.get(logoutUri);
-
-      if (response.statusCode != 200) {
-        // Log but don't throw – we still want to clear local session
-        print(
-          'Shopify logout returned ${response.statusCode}: ${response.body}',
+      if (_idToken != null) {
+        final logoutUri = Uri.parse(config['end_session_endpoint']).replace(
+          queryParameters: {
+            'id_token_hint': _idToken!,
+            if (postLogoutRedirectUri != null)
+              'post_logout_redirect_uri': postLogoutRedirectUri,
+          },
         );
+        await http.get(logoutUri);
       }
     } catch (e) {
-      print('Error during Shopify logout: $e');
-      // Still continue to clear local data
+      print('Logout error: $e');
     } finally {
-      // Always clear local tokens – this is the most important part
       await _clearPersistedTokens();
-      // Optionally: navigate to login/home screen via your app's router
-      // e.g. Navigator.pushReplacementNamed(context, '/login');
     }
   }
 
-  /// Silent logout - just clear local tokens without calling Shopify
   Future<void> silentLogout() async {
     await _clearPersistedTokens();
   }
 
-  // ============ API Requests ============
+  // ============ Customer Account API (Authenticated User Data) ============
 
-  /// Make a GraphQL request to the Customer Account API
+  /// Query the Customer Account API (Requires Authentication)
   Future<Map<String, dynamic>> query({
     required String graphqlQuery,
     Map<String, dynamic>? variables,
@@ -550,10 +482,8 @@ class ShopifyCustomerAccountAuth {
     );
 
     if (response.statusCode == 401) {
-      // Token might be invalid, try refreshp
       try {
         await refreshAccessToken();
-        // Retry the request
         return query(
           graphqlQuery: graphqlQuery,
           variables: variables,
@@ -561,82 +491,304 @@ class ShopifyCustomerAccountAuth {
         );
       } catch (e) {
         await _clearPersistedTokens();
-        throw Exception('Session expired - please login again');
+        throw Exception('Session expired');
       }
     }
 
-    if (response.statusCode != 200) {
+    if (response.statusCode != 200)
       throw Exception('API request failed: ${response.body}');
-    }
-
     final result = jsonDecode(response.body);
-
-    // Check for GraphQL errors
     if (result['errors'] != null && (result['errors'] as List).isNotEmpty) {
-      final errors = result['errors'] as List;
-      throw Exception('GraphQL Error: ${errors.first['message']}');
+      throw Exception('GraphQL Error: ${result['errors'][0]['message']}');
     }
-
     return result;
   }
 
-  /// Get current customer information
   Future<Map<String, dynamic>> getCurrentCustomer() async {
-    const customerQuery = '''
+    const q = '''
       query GetCustomer {
         customer {
           id
           firstName
           lastName
-          emailAddress {
-            emailAddress
-          }
-          defaultAddress {
-            id
-            formatted
-            phoneNumber
-          }
+          emailAddress { emailAddress }
+          defaultAddress { id formatted phoneNumber }
         }
       }
     ''';
-
-    return query(graphqlQuery: customerQuery, operationName: 'GetCustomer');
+    return query(graphqlQuery: q, operationName: 'GetCustomer');
   }
 
-  /// Get customer orders
   Future<Map<String, dynamic>> getOrders({int first = 10}) async {
-    const ordersQuery = '''
+    const q = '''
       query GetOrders(\$first: Int!) {
         customer {
           orders(first: \$first) {
             edges {
               node {
-                id
-                number
-                processedAt
-                financialStatus
-                fulfillments(first: 1) {
-                  edges {
-                    node {
-                      status
-                    }
-                  }
-                }
-                totalPrice {
-                  amount
-                  currencyCode
-                }
+                id number processedAt financialStatus
+                totalPrice { amount currencyCode }
               }
             }
           }
         }
       }
     ''';
-
     return query(
-      graphqlQuery: ordersQuery,
+      graphqlQuery: q,
       operationName: 'GetOrders',
       variables: {'first': first},
     );
+  }
+
+  // ============ Storefront API (Cart Functionality) ============
+
+  /// Query the Storefront API (Used for Cart & Products)
+  /// This uses the [storefrontAccessToken] and does not require user login,
+  /// but helps power the shopping experience.
+  Future<Map<String, dynamic>> storefrontQuery({
+    required String graphqlQuery,
+    Map<String, dynamic>? variables,
+  }) async {
+    final endpoint = Uri.parse(
+      'https://$shopDomain/api/$storefrontApiVersion/graphql',
+    );
+
+    final response = await http.post(
+      endpoint,
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Shopify-Storefront-Access-Token': storefrontAccessToken,
+      },
+      body: jsonEncode({'query': graphqlQuery, 'variables': variables}),
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception('Storefront API request failed: ${response.body}');
+    }
+
+    final result = jsonDecode(response.body);
+    if (result['errors'] != null && (result['errors'] as List).isNotEmpty) {
+      throw Exception(
+        'Storefront GraphQL Error: ${result['errors'][0]['message']}',
+      );
+    }
+
+    return result;
+  }
+
+  /// Create a new Cart
+  /// If the user is authenticated, we attach their email to the cart's buyer identity.
+  Future<Map<String, dynamic>> createCart({
+    List<Map<String, dynamic>>? lines,
+  }) async {
+    final email = customerEmail;
+
+    // Construct input. If user is logged in, we add their email to the cart.
+    // Note: We cannot pass the OIDC accessToken here; Storefront API expects a different token type.
+    // Passing email helps pre-fill checkout.
+    final Map<String, dynamic> input = {
+      if (lines != null) 'lines': lines,
+      if (email != null) 'buyerIdentity': {'email': email},
+    };
+
+    const q = '''
+      mutation CartCreate(\$input: CartInput) {
+        cartCreate(input: \$input) {
+          cart {
+            id
+            checkoutUrl
+            lines(first: 10) {
+              edges { node { id quantity merchandise { ... on ProductVariant { id title } } } }
+            }
+            cost {
+              totalAmount { amount currencyCode }
+            }
+          }
+        }
+      }
+    ''';
+
+    final result = await storefrontQuery(
+      graphqlQuery: q,
+      variables: {'input': input},
+    );
+    final cartData = result['data']['cartCreate']['cart'];
+
+    _cartId = cartData['id'];
+    await _persistCartId();
+
+    return cartData;
+  }
+
+  /// Get current cart details
+  /// If no cart exists locally, returns null.
+  Future<Map<String, dynamic>?> getCart() async {
+    if (_cartId == null) return null;
+
+    const q = '''
+      query GetCart(\$cartId: ID!) {
+        cart(id: \$cartId) {
+          id
+          checkoutUrl
+          updatedAt
+          lines(first: 50) {
+            edges {
+              node {
+                id
+                quantity
+                merchandise {
+                  ... on ProductVariant {
+                    id
+                    title
+                    price { amount currencyCode }
+                    image { url }
+                    product { title }
+                  }
+                }
+              }
+            }
+          }
+          cost {
+            subtotalAmount { amount currencyCode }
+            totalAmount { amount currencyCode }
+            totalTaxAmount { amount currencyCode }
+          }
+        }
+      }
+    ''';
+
+    try {
+      final result = await storefrontQuery(
+        graphqlQuery: q,
+        variables: {'cartId': _cartId},
+      );
+      return result['data']['cart'];
+    } catch (e) {
+      // If cart is not found (expired), clear local ID
+      if (e.toString().contains('valid cart')) {
+        _cartId = null;
+        await _secureStorage.delete(key: _cartIdKey);
+        return null;
+      }
+      rethrow;
+    }
+  }
+
+  /// Add product variant to cart
+  /// [lines] example: [{'merchandiseId': 'gid://shopify/ProductVariant/123', 'quantity': 1}]
+  Future<Map<String, dynamic>> addToCart(
+    List<Map<String, dynamic>> lines,
+  ) async {
+    _cartId ??= await _secureStorage.read(key: _cartIdKey);
+
+    if (_cartId == null) {
+      return createCart(lines: lines);
+    }
+
+    const q = '''
+      mutation CartLinesAdd(\$cartId: ID!, \$lines: [CartLineInput!]!) {
+        cartLinesAdd(cartId: \$cartId, lines: \$lines) {
+          cart {
+            id
+            lines(first: 50) {
+              edges { node { id quantity merchandise { ... on ProductVariant { id title } } } }
+            }
+            cost { totalAmount { amount currencyCode } }
+          }
+          userErrors { field message }
+        }
+      }
+    ''';
+
+    final result = await storefrontQuery(
+      graphqlQuery: q,
+      variables: {'cartId': _cartId, 'lines': lines},
+    );
+
+    final userErrors = result['data']['cartLinesAdd']['userErrors'] as List;
+    if (userErrors.isNotEmpty) {
+      throw Exception(userErrors.first['message']);
+    }
+
+    notifyListeners();
+    return result['data']['cartLinesAdd']['cart'];
+  }
+
+  /// Remove items from cart
+  /// [lineIds] are the IDs of the lines in the cart (not product IDs)
+  Future<Map<String, dynamic>> removeFromCart(List<String> lineIds) async {
+    if (_cartId == null) throw Exception('No active cart');
+
+    const q = '''
+      mutation CartLinesRemove(\$cartId: ID!, \$lineIds: [ID!]!) {
+        cartLinesRemove(cartId: \$cartId, lineIds: \$lineIds) {
+          cart {
+            id
+            lines(first: 50) {
+              edges { node { id quantity } }
+            }
+            cost { totalAmount { amount currencyCode } }
+          }
+          userErrors { field message }
+        }
+      }
+    ''';
+
+    final result = await storefrontQuery(
+      graphqlQuery: q,
+      variables: {'cartId': _cartId, 'lineIds': lineIds},
+    );
+
+    final userErrors = result['data']['cartLinesRemove']['userErrors'] as List;
+    if (userErrors.isNotEmpty) {
+      throw Exception(userErrors.first['message']);
+    }
+
+    notifyListeners(); // 2. Notify when cart ID is set
+
+    return result['data']['cartLinesRemove']['cart'];
+  }
+
+  /// Update quantity of an item
+  Future<Map<String, dynamic>> updateCartLine(
+    String lineId,
+    int quantity,
+  ) async {
+    if (_cartId == null) throw Exception('No active cart');
+
+    const q = '''
+      mutation CartLinesUpdate(\$cartId: ID!, \$lines: [CartLineUpdateInput!]!) {
+        cartLinesUpdate(cartId: \$cartId, lines: \$lines) {
+          cart {
+            id
+            lines(first: 50) {
+              edges { node { id quantity } }
+            }
+            cost { totalAmount { amount currencyCode } }
+          }
+          userErrors { field message }
+        }
+      }
+    ''';
+
+    final result = await storefrontQuery(
+      graphqlQuery: q,
+      variables: {
+        'cartId': _cartId,
+        'lines': [
+          {'id': lineId, 'quantity': quantity},
+        ],
+      },
+    );
+
+    final userErrors = result['data']['cartLinesUpdate']['userErrors'] as List;
+    if (userErrors.isNotEmpty) {
+      throw Exception(userErrors.first['message']);
+    }
+
+    notifyListeners(); // 2. Notify when cart ID is set
+
+    return result['data']['cartLinesUpdate']['cart'];
   }
 }

@@ -5,7 +5,6 @@ import 'package:comfy_socks/screens/blog_tab.dart';
 import 'package:comfy_socks/screens/cart_tab.dart';
 import 'package:comfy_socks/screens/collection_tab.dart';
 import 'package:comfy_socks/services/auth_notifier.dart';
-import 'package:comfy_socks/services/cart_service.dart';
 import 'package:comfy_socks/services/locale_notifier.dart';
 import 'package:comfy_socks/services/shopify_customer_account_auth.dart';
 import 'package:flutter/foundation.dart';
@@ -28,6 +27,7 @@ Future<void> main() async {
   ShopifyCustomerAccountAuth.initialize(
     clientId: dotenv.env['CUSTOMER_ACCOUNT_API_CLIENT_ID'] ?? '',
     shopDomain: dotenv.env['STORE_URL'] ?? '',
+    storefrontAccessToken: dotenv.env['STOREFRONT_ACCESS_TOKEN'] ?? '',
     redirectUri: dotenv.env['REDIRECT_URI'] ?? '',
   );
 
@@ -55,7 +55,6 @@ Future<void> main() async {
   );
 
   // Initialize services - restore previous sessions
-  await CartService.instance.init();
   await AuthNotifier.instance.init();
 
   runApp(

@@ -19,8 +19,8 @@ class ProductDetailScreen extends StatefulWidget {
 
 class ProductDetailScreenState extends State<ProductDetailScreen> {
   late Product product;
-  final CartService _cartService = CartService.instance;
-  final ShopifyCustomerAccountAuth _authService = ShopifyCustomerAccountAuth.instance;
+  final ShopifyCustomerAccountAuth _authService =
+      ShopifyCustomerAccountAuth.instance;
 
   bool isLoading = false;
   late ProductVariant selectedVariant;
@@ -31,17 +31,16 @@ class ProductDetailScreenState extends State<ProductDetailScreen> {
     super.initState();
     product = widget.product;
     // Safety check for empty variants
-    selectedVariant = product.productVariants.isNotEmpty 
-        ? product.productVariants.first 
+    selectedVariant = product.productVariants.isNotEmpty
+        ? product.productVariants.first
         : throw Exception('Product has no variants');
-    
-    _cartService.addListener(_updateUI);
-    _initCartSession();
+
+    _authService.addListener(_updateUI);
   }
 
   @override
   void dispose() {
-    _cartService.removeListener(_updateUI);
+    _authService.removeListener(_updateUI);
     super.dispose();
   }
 
@@ -50,38 +49,19 @@ class ProductDetailScreenState extends State<ProductDetailScreen> {
     if (mounted) setState(() {});
   }
 
-  Future<void> _initCartSession() async {
-    if (_cartService.cart != null) return;
-    setState(() => isLoading = true);
-    try {
-      await _cartService.init();
-      if (_cartService.cart == null) {
-        String? accessToken = _authService.accessToken;
-        String? email;
-        if (accessToken != null) {
-          final customerData = await _authService.getCurrentCustomer();
-          email = customerData['data']?['customer']?['emailAddress']?['emailAddress'];
-        }
-        await _cartService.createCart(email: email, accessToken: accessToken);
-      }
-    } catch (e) {
-      log('Cart Init Error: $e');
-    } finally {
-      if (mounted) setState(() => isLoading = false);
-    }
-  }
-
   Future<void> _addToCart() async {
     setState(() => isLoading = true);
     try {
-      await _cartService.addToCart(
-        variantId: selectedVariant.id,
-        quantity: quantity,
-        // 20260121: no need to add variant title as attribute
-        // attributes: [AttributeInput(key: 'variant_title', value: selectedVariant.title)],
-      );
+      await _authService.addToCart([
+        {
+          'merchandiseId': selectedVariant
+              .id, // Ensure this is a Shopify GID (e.g., gid://shopify/ProductVariant/...)
+          'quantity': quantity,
+        },
+      ]);
       if (mounted) context.showSnackBar('Added ${product.title} to cart');
     } catch (e) {
+      log('Add to Cart Error: $e');
       if (mounted) context.showSnackBar('Error adding to cart');
     } finally {
       if (mounted) setState(() => isLoading = false);
@@ -91,7 +71,7 @@ class ProductDetailScreenState extends State<ProductDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return Scaffold(
       body: CustomScrollView(
         slivers: [
@@ -111,18 +91,27 @@ class ProductDetailScreenState extends State<ProductDetailScreen> {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  
+
                   const Divider(height: 48),
 
                   // FIXED: Added null check for description
                   if (product.description!.isNotEmpty) ...[
-                    Text(AppLocalizations.of(context)!.description, style: theme.textTheme.titleMedium),
+                    Text(
+                      AppLocalizations.of(context)!.description,
+                      style: theme.textTheme.titleMedium,
+                    ),
                     const SizedBox(height: 8),
-                    Text(product.description ?? '', style: theme.textTheme.bodyMedium),
+                    Text(
+                      product.description ?? '',
+                      style: theme.textTheme.bodyMedium,
+                    ),
                     const SizedBox(height: 24),
                   ],
 
-                  Text(AppLocalizations.of(context)!.selectVariant, style: theme.textTheme.titleMedium),
+                  Text(
+                    AppLocalizations.of(context)!.selectVariant,
+                    style: theme.textTheme.titleMedium,
+                  ),
                   const SizedBox(height: 12),
                   Wrap(
                     spacing: 8,
@@ -137,10 +126,13 @@ class ProductDetailScreenState extends State<ProductDetailScreen> {
                       );
                     }).toList(),
                   ),
-                  
+
                   const SizedBox(height: 24),
 
-                  Text(AppLocalizations.of(context)!.quantity, style: theme.textTheme.titleMedium),
+                  Text(
+                    AppLocalizations.of(context)!.quantity,
+                    style: theme.textTheme.titleMedium,
+                  ),
                   const SizedBox(height: 12),
                   _QuantitySelector(
                     quantity: quantity,
@@ -169,7 +161,8 @@ class ProductDetailScreenState extends State<ProductDetailScreen> {
                   // FIXED: Handled potential null or empty image source
                   product.images[index].originalSrc,
                   fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => const Center(child: Icon(Icons.broken_image)),
+                  errorBuilder: (_, __, ___) =>
+                      const Center(child: Icon(Icons.broken_image)),
                 ),
               )
             : Container(
@@ -182,22 +175,42 @@ class ProductDetailScreenState extends State<ProductDetailScreen> {
 
   Widget _buildBottomAction(ThemeData theme) {
     final isAvailable = selectedVariant.availableForSale;
-    
+
     return Container(
-      padding: EdgeInsets.fromLTRB(16, 16, 16, MediaQuery.of(context).padding.bottom + 16),
+      padding: EdgeInsets.fromLTRB(
+        16,
+        16,
+        16,
+        MediaQuery.of(context).padding.bottom + 16,
+      ),
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
-        border: Border(top: BorderSide(color: theme.colorScheme.outlineVariant)),
+        border: Border(
+          top: BorderSide(color: theme.colorScheme.outlineVariant),
+        ),
       ),
       child: FilledButton.icon(
         onPressed: isAvailable && !isLoading ? _addToCart : null,
-        icon: isLoading 
-          ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-          : const Icon(Icons.add_shopping_cart),
-        label: Text(isAvailable ? AppLocalizations.of(context)!.addToCart : AppLocalizations.of(context)!.outOfStock),
+        icon: isLoading
+            ? const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.white,
+                ),
+              )
+            : const Icon(Icons.add_shopping_cart),
+        label: Text(
+          isAvailable
+              ? AppLocalizations.of(context)!.addToCart
+              : AppLocalizations.of(context)!.outOfStock,
+        ),
         style: FilledButton.styleFrom(
           minimumSize: const Size.fromHeight(56),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
         ),
       ),
     );
@@ -214,7 +227,7 @@ class _QuantitySelector extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.3),
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(12),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
@@ -227,7 +240,10 @@ class _QuantitySelector extends StatelessWidget {
           ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Text('$quantity', style: Theme.of(context).textTheme.titleMedium),
+            child: Text(
+              '$quantity',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
           ),
           IconButton(
             onPressed: () => onChanged(quantity + 1),

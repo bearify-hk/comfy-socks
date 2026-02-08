@@ -1,10 +1,10 @@
 // auth_notifier.dart
 import 'package:flutter/foundation.dart';
 import 'shopify_customer_account_auth.dart';
-import 'cart_service.dart';
 
 /// A simple notifier for authentication state changes
 class AuthNotifier extends ChangeNotifier {
+  // Singleton pattern
   static final AuthNotifier _instance = AuthNotifier._internal();
   static AuthNotifier get instance => _instance;
   AuthNotifier._internal();
@@ -17,21 +17,21 @@ class AuthNotifier extends ChangeNotifier {
   bool get isAuthenticated => _isAuthenticated;
   bool get isLoading => _isLoading;
 
+  final ShopifyCustomerAccountAuth _auth = ShopifyCustomerAccountAuth.instance;
+
   /// Initialize the auth state - call this on app startup
   Future<void> init() async {
     if (_isInitialized) return;
 
     _isLoading = true;
+    // Notify listeners immediately so UI can show a loading state
     notifyListeners();
 
     try {
-      final auth = ShopifyCustomerAccountAuth.instance;
-      _isAuthenticated = await auth.init();
-
-      // If authenticated, sync the cart with the user
-      if (_isAuthenticated) {
-        await CartService.instance.syncBuyerIdentity();
-      }
+      // 1. Initialize the Auth Service (loads tokens & cart ID from storage)
+      // This returns true if a valid access token was found/refreshed
+      final success = await _auth.init();
+      _isAuthenticated = success;
     } catch (e) {
       if (kDebugMode) {
         print('Auth init error: $e');
@@ -44,19 +44,14 @@ class AuthNotifier extends ChangeNotifier {
     }
   }
 
-  /// Call this when the OAuth callback is received
+  /// Call this when the OAuth callback is received (e.g. deep link)
   Future<void> notifyAuthStateChanged() async {
     _isLoading = true;
     notifyListeners();
 
     try {
-      final auth = ShopifyCustomerAccountAuth.instance;
-      _isAuthenticated = auth.isAuthenticated;
-
-      if (_isAuthenticated) {
-        // Sync cart with the newly logged-in user
-        await CartService.instance.syncBuyerIdentity();
-      }
+      // Check the source of truth
+      _isAuthenticated = _auth.isAuthenticated;
     } catch (e) {
       if (kDebugMode) {
         print('Auth state change error: $e');
@@ -73,11 +68,9 @@ class AuthNotifier extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final auth = ShopifyCustomerAccountAuth.instance;
-      await auth.logout();
-
-      // Clear the buyer identity from the cart
-      await CartService.instance.clearBuyerIdentity();
+      // 2. Delegate logout to the Auth Service
+      // This clears tokens but KEEPS the cart ID (for guest checkout continuity)
+      await _auth.logout();
 
       _isAuthenticated = false;
     } catch (e) {
@@ -92,9 +85,7 @@ class AuthNotifier extends ChangeNotifier {
 
   /// Silent logout without opening browser
   Future<void> silentLogout() async {
-    final auth = ShopifyCustomerAccountAuth.instance;
-    await auth.silentLogout();
-    await CartService.instance.clearBuyerIdentity();
+    await _auth.silentLogout();
     _isAuthenticated = false;
     notifyListeners();
   }

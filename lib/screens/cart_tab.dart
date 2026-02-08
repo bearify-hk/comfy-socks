@@ -1,11 +1,10 @@
 // cart_tab.dart
 import 'dart:developer';
 import 'package:comfy_socks/l10n/app_localizations.dart';
-import 'package:comfy_socks/services/cart_service.dart';
 import 'package:flutter/material.dart';
-import 'package:shopify_flutter/shopify_flutter.dart';
 import 'package:comfy_socks/services/shopify_customer_account_auth.dart';
-import 'package:comfy_socks/screens/checkout_webview.dart'; // Ensure this matches your project
+// import 'package:comfy_socks/screens/checkout_webview.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class CartTab extends StatefulWidget {
   const CartTab({super.key});
@@ -15,43 +14,42 @@ class CartTab extends StatefulWidget {
 }
 
 class _CartTabState extends State<CartTab> {
-  final CartService cartService = CartService.instance;
+  // Use the new service directly
   final ShopifyCustomerAccountAuth authService =
       ShopifyCustomerAccountAuth.instance;
+
+  Map<String, dynamic>? currentCart; // Local state to hold the Map data
   bool isLoading = false;
 
   @override
   void initState() {
     super.initState();
-    cartService.addListener(_onCartUpdate);
+    // Listen to changes (like removals or additions)
+    authService.addListener(_onAuthServiceUpdate);
     initializeCart();
   }
 
   @override
   void dispose() {
-    cartService.removeListener(_onCartUpdate);
+    authService.removeListener(_onAuthServiceUpdate);
     super.dispose();
   }
 
-  void _onCartUpdate() => setState(() {});
+  // When the service notifies (e.g. item removed), re-fetch data
+  void _onAuthServiceUpdate() {
+    if (mounted) initializeCart();
+  }
 
   Future<void> initializeCart() async {
-    if (cartService.cart != null) return;
+    if (!mounted) return;
     setState(() => isLoading = true);
     try {
-      String? accessToken = authService.accessToken;
-      String? customerEmail;
-      if (accessToken != null) {
-        final customerData = await authService.getCurrentCustomer();
-        customerEmail =
-            customerData['data']['customer']['emailAddress']['emailAddress'];
-      }
-      await cartService.createCart(
-        email: customerEmail,
-        accessToken: accessToken,
-      );
+      final cartData = await authService.getCart();
+      // Only update state, do NOT call createCart() here.
+      // If cartData is null, the UI should simply show the "Empty State".
+      setState(() => currentCart = cartData);
     } catch (e) {
-      log('Init Cart Error: $e');
+      log('Cart Error: $e');
     } finally {
       if (mounted) setState(() => isLoading = false);
     }
@@ -59,119 +57,160 @@ class _CartTabState extends State<CartTab> {
 
   @override
   Widget build(BuildContext context) {
-    final cart = cartService.cart;
     final colorScheme = Theme.of(context).colorScheme;
+
+    // Safely extract lines from the GraphQL Map structure
+    final List lines = currentCart?['lines']?['edges'] ?? [];
 
     return Scaffold(
       backgroundColor: colorScheme.surface,
       appBar: AppBar(
         title: Text(AppLocalizations.of(context)!.cart),
-        centerTitle: false,
         actions: [
-          if (cart != null)
-            IconButton(
-              onPressed: () => cartService.fetchCart(cart.id),
-              icon: const Icon(Icons.refresh_rounded),
-            ),
+          IconButton(
+            onPressed: initializeCart,
+            icon: const Icon(Icons.refresh_rounded),
+          ),
         ],
       ),
-      body: isLoading
+      body: isLoading && currentCart == null
           ? const Center(child: CircularProgressIndicator())
-          : (cart == null || cart.lines.isEmpty)
+          : lines.isEmpty
           ? _buildEmptyState(colorScheme)
           : Column(
               children: [
                 Expanded(
                   child: ListView.separated(
                     padding: const EdgeInsets.all(16),
-                    itemCount: cart.lines.length,
+                    itemCount: lines.length,
                     separatorBuilder: (context, index) =>
                         const SizedBox(height: 12),
                     itemBuilder: (context, index) {
-                      final line = cart.lines[index];
-                      final product = line.merchandise?.product;
-                      final variant = line.merchandise;
-                      // Extracting Thumbnail and Price
-                      final imageUrl = variant?.image?.originalSrc;
-                      final price = variant?.price.amount ?? 0.0;
-                      final currency = variant?.price.currencyCode ?? 'USD';
+                      final node = lines[index]['node'];
+                      final lineId = node['id'];
+                      final quantity = node['quantity'];
+                      final variant = node['merchandise'];
+                      final productTitle =
+                          variant['product']?['title'] ?? 'Product';
+                      final variantTitle = variant['title'];
+
+                      // Image and Price parsing from Map
+                      final imageUrl = variant['image']?['url'];
+                      final price = variant['price']?['amount'] ?? "0.0";
+                      final currency = variant['price']?['currencyCode'] ?? "";
 
                       return Card(
                         elevation: 0,
                         color: colorScheme.surfaceContainerLow,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16),
-                          side: BorderSide(
-                            color: colorScheme.outlineVariant,
-                            width: 1,
-                          ),
+                          side: BorderSide(color: colorScheme.outlineVariant),
                         ),
-                        child: Padding(
-                          padding: const EdgeInsets.all(8.0),
-                          child: ListTile(
-                            contentPadding: EdgeInsets.zero,
-                            leading: ClipRRect(
-                              borderRadius: BorderRadius.circular(12),
-                              child: imageUrl != null
-                                  ? Image.network(
-                                      imageUrl,
-                                      width: 64,
-                                      height: 64,
-                                      fit: BoxFit.cover,
-                                    )
-                                  : Container(
-                                      width: 64,
-                                      height: 64,
-                                      color:
-                                          colorScheme.surfaceContainerHighest,
-                                    ),
-                            ),
-                            title: Text(
-                              product?.title ?? 'Product',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w600,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            subtitle: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  "${AppLocalizations.of(context)!.qtyColon} ${line.quantity}",
-                                  style: Theme.of(context).textTheme.bodySmall,
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  "$currency ${price.toStringAsFixed(2)}",
-                                  style: TextStyle(
-                                    color: colorScheme.primary,
-                                    fontWeight: FontWeight.bold,
+                        child: ListTile(
+                          leading: ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: imageUrl != null
+                                ? Image.network(
+                                    imageUrl,
+                                    width: 64,
+                                    height: 64,
+                                    fit: BoxFit.cover,
+                                  )
+                                : Container(
+                                    width: 64,
+                                    height: 64,
+                                    color: colorScheme.surfaceContainerHighest,
                                   ),
-                                ),
-                              ],
+                          ),
+                          title: Text(
+                            productTitle,
+                            style: const TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                          subtitle: Text("Qty: $quantity • $currency $price"),
+                          trailing: IconButton(
+                            icon: const Icon(
+                              Icons.delete_outline_rounded,
+                              color: Colors.redAccent,
                             ),
-                            trailing: IconButton(
-                              icon: const Icon(
-                                Icons.delete_outline_rounded,
-                                color: Colors.redAccent,
-                              ),
-                              onPressed: () {
-                                if (line.id != null) {
-                                  cartService.removeFromCart(line.id!);
-                                }
-                              },
-                            ),
+                            onPressed: () async {
+                              await authService.removeFromCart([lineId]);
+                              // The listener will automatically trigger initializeCart()
+                            },
                           ),
                         ),
                       );
                     },
                   ),
                 ),
-                _buildCheckoutSummary(cart, colorScheme),
+                _buildCheckoutSummary(currentCart!, colorScheme),
               ],
             ),
     );
+  }
+
+  Widget _buildCheckoutSummary(
+    Map<String, dynamic> cart,
+    ColorScheme colorScheme,
+  ) {
+    final cost = cart['cost']?['totalAmount'];
+    final total = cost?['amount'] ?? "0.0";
+    final currency = cost?['currencyCode'] ?? "";
+    final checkoutUrl = cart['checkoutUrl'];
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainer,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      child: SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(AppLocalizations.of(context)!.estimatedTotal),
+                Text(
+                  "$currency $total",
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: checkoutUrl != null
+                    ? () => _launchCheckout(checkoutUrl)
+                    : null,
+                child: Text(AppLocalizations.of(context)!.checkout),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ... _buildEmptyState and _launchCheckout remain largely the same ...
+  void _launchCheckout(String url) async {
+    final uri = Uri.parse(url);
+    final authenticatedUri = uri.replace(
+      queryParameters: {...uri.queryParameters, 'logged_in': 'true'},
+    );
+
+    if (await canLaunchUrl(authenticatedUri)) {
+      await launchUrl(
+        authenticatedUri,
+        mode: LaunchMode.externalApplication, // This forces it out of a WebView
+      );
+    } else {
+      throw 'Could not launch $authenticatedUri';
+    }
   }
 
   Widget _buildEmptyState(ColorScheme colorScheme) {
@@ -187,65 +226,9 @@ class _CartTabState extends State<CartTab> {
           const SizedBox(height: 16),
           Text(
             AppLocalizations.of(context)!.yourCartIsEmpty,
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
+            style: const TextStyle(fontSize: 18),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildCheckoutSummary(Cart cart, ColorScheme colorScheme) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: colorScheme.surfaceContainer,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      child: SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  AppLocalizations.of(context)!.estimatedTotal,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                Text(
-                  "${cart.cost!.totalAmount.currencyCode} ${cart.cost!.totalAmount.amount.toStringAsFixed(2)}",
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: colorScheme.onSurface,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: cart.checkoutUrl != null
-                    ? () => _launchCheckout(cart.checkoutUrl!)
-                    : null,
-                child: Text(AppLocalizations.of(context)!.checkout),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _launchCheckout(String url) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => WebViewCheckout(checkoutUrl: url),
       ),
     );
   }
