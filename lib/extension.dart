@@ -1,3 +1,4 @@
+import 'package:comfy_socks/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 
 extension BuildContextExt on BuildContext {
@@ -25,7 +26,7 @@ extension BuildContextExt on BuildContext {
           margin: const EdgeInsets.all(16),
           duration: const Duration(seconds: 3),
           action: SnackBarAction(
-            label: 'Dismiss',
+            label: AppLocalizations.of(this)!.dismiss,
             textColor: isError
                 ? theme.colorScheme.error
                 : theme.colorScheme.inversePrimary,

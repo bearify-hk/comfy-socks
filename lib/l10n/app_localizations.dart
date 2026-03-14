@@ -369,6 +369,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Added {productTitle} to cart'**
   String addedToCart(String productTitle);
+
+  /// No description provided for @dismiss.
+  ///
+  /// In en, this message translates to:
+  /// **'Close'**
+  String get dismiss;
 }
 
 class _AppLocalizationsDelegate

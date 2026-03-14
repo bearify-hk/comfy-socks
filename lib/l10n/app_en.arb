@@ -79,5 +79,6 @@
         "example": "iPhone 15"
       }
     }
-  }
+  },
+  "dismiss": "Close"
 }

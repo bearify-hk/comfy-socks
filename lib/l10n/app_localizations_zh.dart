@@ -160,6 +160,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String addedToCart(String productTitle) {
     return '已將 $productTitle 加入購物車';
   }
+
+  @override
+  String get dismiss => '關閉';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hans`).
@@ -318,6 +321,9 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String addedToCart(String productTitle) {
     return '已将 $productTitle 加入购物车';
   }
+
+  @override
+  String get dismiss => '关闭';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hant`).
@@ -476,4 +482,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String addedToCart(String productTitle) {
     return '已將 $productTitle 加入購物車';
   }
+
+  @override
+  String get dismiss => '關閉';
 }

@@ -163,4 +163,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String addedToCart(String productTitle) {
     return 'Added $productTitle to cart';
   }
+
+  @override
+  String get dismiss => 'Close';
 }
