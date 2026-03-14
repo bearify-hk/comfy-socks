@@ -89,11 +89,11 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "com.example" "\0"
+            VALUE "CompanyName", "com.comfysocks" "\0"
             VALUE "FileDescription", "comfy_socks" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
             VALUE "InternalName", "comfy_socks" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2025 com.example. All rights reserved." "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2025 com.comfysocks. All rights reserved." "\0"
             VALUE "OriginalFilename", "comfy_socks.exe" "\0"
             VALUE "ProductName", "comfy_socks" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"

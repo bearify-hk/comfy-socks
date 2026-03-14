@@ -1,4 +1,4 @@
-package com.example.comfy_socks
+package com.comfysocks.app
 
 import io.flutter.embedding.android.FlutterActivity
 
