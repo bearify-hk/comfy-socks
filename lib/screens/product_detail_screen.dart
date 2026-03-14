@@ -3,8 +3,6 @@ import 'package:comfy_socks/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:shopify_flutter/models/src/cart/inputs/attribute_input/attribute_input.dart';
 import 'package:shopify_flutter/shopify_flutter.dart';
-
-import '../services/cart_service.dart';
 import '../services/shopify_customer_account_auth.dart';
 import '../extension.dart';
 // import 'cart_bottom_sheet.dart';

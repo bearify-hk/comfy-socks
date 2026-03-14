@@ -196,17 +196,27 @@ class _CartTabState extends State<CartTab> {
     );
   }
 
-  // ... _buildEmptyState and _launchCheckout remain largely the same ...
   void _launchCheckout(String url) async {
     final uri = Uri.parse(url);
-    final authenticatedUri = uri.replace(
-      queryParameters: {...uri.queryParameters, 'logged_in': 'true'},
-    );
+
+    // FIX: Only append 'logged_in=true' if the user is actually authenticated
+    final isAuthenticated = authService.isAuthenticated;
+
+    Uri authenticatedUri = uri;
+
+    if (isAuthenticated) {
+      authenticatedUri = uri.replace(
+        queryParameters: {...uri.queryParameters, 'logged_in': 'true'},
+      );
+    }
 
     if (await canLaunchUrl(authenticatedUri)) {
       await launchUrl(
         authenticatedUri,
-        mode: LaunchMode.externalApplication, // This forces it out of a WebView
+        // Note: If you want to clear browser cookies entirely,
+        // the user must manually sign out of the browser,
+        // but dropping the Cart ID (Fix #1) usually solves the "Pre-filled info" issue.
+        mode: LaunchMode.externalApplication,
       );
     } else {
       throw 'Could not launch $authenticatedUri';

@@ -57,7 +57,7 @@ class _CustomerAccountAuthTabState extends State<CustomerAccountAuthTab> {
         } catch (e) {
           log('Token refresh failed during init: $e');
           // Session expired, user needs to login again
-          await _auth.silentLogout();
+          await _auth.logout();
         }
       }
     } catch (e) {

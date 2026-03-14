@@ -174,6 +174,9 @@ class ShopifyCustomerAccountAuth extends ChangeNotifier {
     await _secureStorage.delete(key: _customerIdKey);
     // Note: We usually DO NOT clear the cart ID on logout, allowing guest checkout continuation
 
+    await _secureStorage.delete(key: _cartIdKey);
+    _cartId = null;
+
     _accessToken = null;
     _refreshToken = null;
     _idToken = null;
@@ -436,19 +439,66 @@ class ShopifyCustomerAccountAuth extends ChangeNotifier {
 
   // ============ Logout ============
 
+  Future<void> _disassociateCart() async {
+    if (_cartId == null) return;
+
+    const q = '''
+      mutation CartBuyerIdentityUpdate(\$cartId: ID!, \$buyerIdentity: CartBuyerIdentityInput!) {
+        cartBuyerIdentityUpdate(cartId: \$cartId, buyerIdentity: \$buyerIdentity) {
+          cart {
+            id
+            checkoutUrl
+            buyerIdentity { email }
+          }
+          userErrors { field message }
+        }
+      }
+    ''';
+
+    try {
+      // Passing nulls removes the association
+      final variables = {
+        'cartId': _cartId,
+        'buyerIdentity': {
+          'email': null,
+          'customerAccessToken': null,
+          'deliveryAddressPreferences':
+              [], // Optional: clear address prefs if needed
+        },
+      };
+
+      final result = await storefrontQuery(
+        graphqlQuery: q,
+        variables: variables,
+      );
+
+      // Optionally update the local cart checkout URL if it changed
+      // (Shopify might generate a new checkout URL for guest mode)
+      // notifyListeners();
+    } catch (e) {
+      print('Failed to disassociate cart: $e');
+      // If this fails, we should probably force delete the cart ID locally
+      // to prevent the "logged in" glitch.
+      await _secureStorage.delete(key: _cartIdKey);
+      _cartId = null;
+    }
+  }
+
   Future<void> logout({String? postLogoutRedirectUri}) async {
     try {
+      await _disassociateCart();
+
       final config = await discoverAuthEndpoints();
-      if (_idToken != null) {
-        final logoutUri = Uri.parse(config['end_session_endpoint']).replace(
-          queryParameters: {
-            'id_token_hint': _idToken!,
-            if (postLogoutRedirectUri != null)
-              'post_logout_redirect_uri': postLogoutRedirectUri,
-          },
-        );
-        await http.get(logoutUri);
-      }
+      if (_idToken == null) return;
+
+      final logoutUri = Uri.parse(config['end_session_endpoint']).replace(
+        queryParameters: {
+          'id_token_hint': _idToken!,
+          if (postLogoutRedirectUri != null)
+            'post_logout_redirect_uri': postLogoutRedirectUri,
+        },
+      );
+      await http.get(logoutUri);
     } catch (e) {
       print('Logout error: $e');
     } finally {
@@ -458,6 +508,7 @@ class ShopifyCustomerAccountAuth extends ChangeNotifier {
 
   Future<void> silentLogout() async {
     await _clearPersistedTokens();
+    await clearCart();
   }
 
   // ============ Customer Account API (Authenticated User Data) ============
