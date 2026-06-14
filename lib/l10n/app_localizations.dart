@@ -121,7 +121,7 @@ abstract class AppLocalizations {
   /// No description provided for @blogs.
   ///
   /// In en, this message translates to:
-  /// **'Blogs'**
+  /// **'News'**
   String get blogs;
 
   /// No description provided for @info.
@@ -235,13 +235,13 @@ abstract class AppLocalizations {
   /// No description provided for @articles.
   ///
   /// In en, this message translates to:
-  /// **'Articles'**
+  /// **'News'**
   String get articles;
 
   /// No description provided for @noArticlesFound.
   ///
   /// In en, this message translates to:
-  /// **'No article is found'**
+  /// **'No news found'**
   String get noArticlesFound;
 
   /// No description provided for @qtyColon.
@@ -301,7 +301,7 @@ abstract class AppLocalizations {
   /// No description provided for @articlesCount.
   ///
   /// In en, this message translates to:
-  /// **'{count} articles'**
+  /// **'{count} news'**
   String articlesCount(int count);
 
   /// No description provided for @opening.

@@ -18,7 +18,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get collections => 'Collections';
 
   @override
-  String get blogs => 'Blogs';
+  String get blogs => 'News';
 
   @override
   String get info => 'Information';
@@ -77,10 +77,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get refresh => 'Refresh';
 
   @override
-  String get articles => 'Articles';
+  String get articles => 'News';
 
   @override
-  String get noArticlesFound => 'No article is found';
+  String get noArticlesFound => 'No news found';
 
   @override
   String get qtyColon => 'Qty:';
@@ -111,7 +111,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String articlesCount(int count) {
-    return '$count articles';
+    return '$count news';
   }
 
   @override

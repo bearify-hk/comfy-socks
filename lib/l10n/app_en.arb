@@ -3,7 +3,7 @@
   "featuredProducts": "Featured Products",
   "home": "Home",
   "collections": "Collections",
-  "blogs": "Blogs",
+  "blogs": "News",
   "info": "Information",
   "cart": "Cart",
   "account": "Account",
@@ -22,8 +22,8 @@
   "address": "Address",
   "email": "Email",
   "refresh": "Refresh",
-  "articles": "Articles",
-  "noArticlesFound": "No article is found",
+  "articles": "News",
+  "noArticlesFound": "No news found",
   "qtyColon": "Qty:",
   "notSet": "Not set",
   "sessionExpired": "Session expired",
@@ -33,7 +33,7 @@
   "description": "Description",
   "searchProducts": "Search products...",
   "yourCartIsEmpty": "Your cart is empty",
-  "articlesCount": "{count} articles",
+  "articlesCount": "{count} news",
   "@articlesCount": {
     "placeholders": {
       "count": {

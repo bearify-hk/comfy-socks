@@ -18,7 +18,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get collections => '系列';
 
   @override
-  String get blogs => '文章';
+  String get blogs => '新聞';
 
   @override
   String get info => '資訊';
@@ -75,10 +75,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get refresh => '重新整理';
 
   @override
-  String get articles => '文章';
+  String get articles => '新聞';
 
   @override
-  String get noArticlesFound => '沒有文章';
+  String get noArticlesFound => '沒有新聞';
 
   @override
   String get qtyColon => '數量︰';
@@ -179,7 +179,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get collections => '系列';
 
   @override
-  String get blogs => '文章';
+  String get blogs => '新闻';
 
   @override
   String get info => '資訊';
@@ -236,7 +236,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get refresh => '重新整理';
 
   @override
-  String get articles => '文章';
+  String get articles => '新闻';
 
   @override
   String get noArticlesFound => '没有文章';
@@ -340,7 +340,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get collections => '系列';
 
   @override
-  String get blogs => '文章';
+  String get blogs => '新聞';
 
   @override
   String get info => '資訊';
@@ -397,10 +397,10 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get refresh => '重新整理';
 
   @override
-  String get articles => '文章';
+  String get articles => '新聞';
 
   @override
-  String get noArticlesFound => '沒有文章';
+  String get noArticlesFound => '沒有新聞';
 
   @override
   String get qtyColon => '數量︰';
