@@ -163,7 +163,7 @@ abstract class AppLocalizations {
   /// No description provided for @signInWithEmail.
   ///
   /// In en, this message translates to:
-  /// **'Sign in with Email'**
+  /// **'Sign in / Register with Email'**
   String get signInWithEmail;
 
   /// No description provided for @weWillSendOtp.

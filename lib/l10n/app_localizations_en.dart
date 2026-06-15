@@ -39,7 +39,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get estimatedTotal => 'Estimated Total';
 
   @override
-  String get signInWithEmail => 'Sign in with Email';
+  String get signInWithEmail => 'Sign in / Register with Email';
 
   @override
   String get weWillSendOtp =>

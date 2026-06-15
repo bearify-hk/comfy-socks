@@ -39,7 +39,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get estimatedTotal => '預計總額';
 
   @override
-  String get signInWithEmail => '以電郵登入';
+  String get signInWithEmail => '以電郵登入／註冊';
 
   @override
   String get weWillSendOtp => '我們將會發送一次性安全驗證碼至您的電郵。';
@@ -361,7 +361,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get estimatedTotal => '預計總額';
 
   @override
-  String get signInWithEmail => '以電郵登入';
+  String get signInWithEmail => '以電郵登入／註冊';
 
   @override
   String get weWillSendOtp => '我們將會發送一次性安全驗證碼至您的電郵。';

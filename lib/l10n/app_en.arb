@@ -10,7 +10,7 @@
   "pages": "Pages",
   "checkout": "Checkout",
   "estimatedTotal": "Estimated Total",
-  "signInWithEmail": "Sign in with Email",
+  "signInWithEmail": "Sign in / Register with Email",
   "weWillSendOtp": "We will send a secure one-time code to your email.",
   "signInToYourAccount": "Sign in to your account",
   "trackOrdersManageYourProfile": "Track orders, manage your profile, and speed up checkout.",
