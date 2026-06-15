@@ -200,7 +200,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get estimatedTotal => '预计总额';
 
   @override
-  String get signInWithEmail => '以电邮登入';
+  String get signInWithEmail => '以电邮登入／注册';
 
   @override
   String get weWillSendOtp => '我们将会发送一次性安全验证码至您的电邮。';
