@@ -53,6 +53,9 @@ dependencies:
     sdk: flutter
   intl: any
 
+dependency_overrides: 
+  connectivity_plus: 6.1.5
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
