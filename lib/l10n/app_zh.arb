@@ -73,5 +73,36 @@
       }
     }
   },
-  "dismiss": "關閉"
+  "dismiss": "關閉",
+  "failedToLoadProfile": "載入個人資料失敗。請下拉重新整理。",
+  "sessionExpiredMessage": "您的登入階段已過期，請重新登入。",
+  "failedToStartLogin": "開始登入失敗，請重試。",
+  "failedToStartLoginError": "開始登入失敗：{error}",
+  "@failedToStartLoginError": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "signedOutSuccessfully": "已成功登出",
+  "signedOut": "已登出",
+  "couldNotOpenBrowser": "無法開啟瀏覽器，請前往 account.comfy-socks.com/profile",
+  "loadingYourAccount": "正在載入您的帳戶…",
+  "yourOrders": "您的訂單",
+  "ordersCount": "{count, plural, other{{count} 個訂單}}",
+  "@ordersCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "failedToLoadOrders": "載入訂單失敗，請重試。",
+  "noOrdersYet": "暫無訂單",
+  "noOrdersDescription": "下單後，訂單將顯示於此。",
+  "startShopping": "開始購物",
+  "orderDetailsComing": "訂單詳情即將推出",
+  "orderNumber": "訂單 #{number}",
+  "@orderNumber": {
+    "placeholders": {
+      "number": { "type": "String" }
+    }
+  }
 }

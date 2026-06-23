@@ -375,6 +375,102 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Close'**
   String get dismiss;
+
+  /// No description provided for @failedToLoadProfile.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to load profile. Pull to refresh.'**
+  String get failedToLoadProfile;
+
+  /// No description provided for @sessionExpiredMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Your session has expired. Please sign in again.'**
+  String get sessionExpiredMessage;
+
+  /// No description provided for @failedToStartLogin.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to start login. Please try again.'**
+  String get failedToStartLogin;
+
+  /// No description provided for @failedToStartLoginError.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to start login: {error}'**
+  String failedToStartLoginError(String error);
+
+  /// No description provided for @signedOutSuccessfully.
+  ///
+  /// In en, this message translates to:
+  /// **'Signed out successfully'**
+  String get signedOutSuccessfully;
+
+  /// No description provided for @signedOut.
+  ///
+  /// In en, this message translates to:
+  /// **'Signed out'**
+  String get signedOut;
+
+  /// No description provided for @couldNotOpenBrowser.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not open browser. Please visit account.comfy-socks.com/profile'**
+  String get couldNotOpenBrowser;
+
+  /// No description provided for @loadingYourAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading your account...'**
+  String get loadingYourAccount;
+
+  /// No description provided for @yourOrders.
+  ///
+  /// In en, this message translates to:
+  /// **'Your Orders'**
+  String get yourOrders;
+
+  /// No description provided for @ordersCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 order} other{{count} orders}}'**
+  String ordersCount(int count);
+
+  /// No description provided for @failedToLoadOrders.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to load orders. Please try again.'**
+  String get failedToLoadOrders;
+
+  /// No description provided for @noOrdersYet.
+  ///
+  /// In en, this message translates to:
+  /// **'No orders yet'**
+  String get noOrdersYet;
+
+  /// No description provided for @noOrdersDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'When you place an order, it will appear here.'**
+  String get noOrdersDescription;
+
+  /// No description provided for @startShopping.
+  ///
+  /// In en, this message translates to:
+  /// **'Start Shopping'**
+  String get startShopping;
+
+  /// No description provided for @orderDetailsComing.
+  ///
+  /// In en, this message translates to:
+  /// **'Order details coming soon'**
+  String get orderDetailsComing;
+
+  /// No description provided for @orderNumber.
+  ///
+  /// In en, this message translates to:
+  /// **'Order #{number}'**
+  String orderNumber(String number);
 }
 
 class _AppLocalizationsDelegate

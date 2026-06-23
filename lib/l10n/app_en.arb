@@ -80,5 +80,36 @@
       }
     }
   },
-  "dismiss": "Close"
+  "dismiss": "Close",
+  "failedToLoadProfile": "Failed to load profile. Pull to refresh.",
+  "sessionExpiredMessage": "Your session has expired. Please sign in again.",
+  "failedToStartLogin": "Failed to start login. Please try again.",
+  "failedToStartLoginError": "Failed to start login: {error}",
+  "@failedToStartLoginError": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "signedOutSuccessfully": "Signed out successfully",
+  "signedOut": "Signed out",
+  "couldNotOpenBrowser": "Could not open browser. Please visit account.comfy-socks.com/profile",
+  "loadingYourAccount": "Loading your account...",
+  "yourOrders": "Your Orders",
+  "ordersCount": "{count, plural, =1{1 order} other{{count} orders}}",
+  "@ordersCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "failedToLoadOrders": "Failed to load orders. Please try again.",
+  "noOrdersYet": "No orders yet",
+  "noOrdersDescription": "When you place an order, it will appear here.",
+  "startShopping": "Start Shopping",
+  "orderDetailsComing": "Order details coming soon",
+  "orderNumber": "Order #{number}",
+  "@orderNumber": {
+    "placeholders": {
+      "number": { "type": "String" }
+    }
+  }
 }

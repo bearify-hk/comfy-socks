@@ -163,6 +163,66 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get dismiss => '關閉';
+
+  @override
+  String get failedToLoadProfile => '載入個人資料失敗。請下拉重新整理。';
+
+  @override
+  String get sessionExpiredMessage => '您的登入階段已過期，請重新登入。';
+
+  @override
+  String get failedToStartLogin => '開始登入失敗，請重試。';
+
+  @override
+  String failedToStartLoginError(String error) {
+    return '開始登入失敗：$error';
+  }
+
+  @override
+  String get signedOutSuccessfully => '已成功登出';
+
+  @override
+  String get signedOut => '已登出';
+
+  @override
+  String get couldNotOpenBrowser =>
+      '無法開啟瀏覽器，請前往 account.comfy-socks.com/profile';
+
+  @override
+  String get loadingYourAccount => '正在載入您的帳戶…';
+
+  @override
+  String get yourOrders => '您的訂單';
+
+  @override
+  String ordersCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count 個訂單',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get failedToLoadOrders => '載入訂單失敗，請重試。';
+
+  @override
+  String get noOrdersYet => '暫無訂單';
+
+  @override
+  String get noOrdersDescription => '下單後，訂單將顯示於此。';
+
+  @override
+  String get startShopping => '開始購物';
+
+  @override
+  String get orderDetailsComing => '訂單詳情即將推出';
+
+  @override
+  String orderNumber(String number) {
+    return '訂單 #$number';
+  }
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hans`).
@@ -324,6 +384,66 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get dismiss => '关闭';
+
+  @override
+  String get failedToLoadProfile => '载入个人资料失败。请下拉刷新。';
+
+  @override
+  String get sessionExpiredMessage => '您的登入阶段已过期，请重新登入。';
+
+  @override
+  String get failedToStartLogin => '开始登入失败，请重试。';
+
+  @override
+  String failedToStartLoginError(String error) {
+    return '开始登入失败：$error';
+  }
+
+  @override
+  String get signedOutSuccessfully => '已成功登出';
+
+  @override
+  String get signedOut => '已登出';
+
+  @override
+  String get couldNotOpenBrowser =>
+      '无法打开浏览器，请前往 account.comfy-socks.com/profile';
+
+  @override
+  String get loadingYourAccount => '正在载入您的帐户…';
+
+  @override
+  String get yourOrders => '您的订单';
+
+  @override
+  String ordersCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count 个订单',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get failedToLoadOrders => '载入订单失败，请重试。';
+
+  @override
+  String get noOrdersYet => '暂无订单';
+
+  @override
+  String get noOrdersDescription => '下单后，订单将显示于此。';
+
+  @override
+  String get startShopping => '开始购物';
+
+  @override
+  String get orderDetailsComing => '订单详情即将推出';
+
+  @override
+  String orderNumber(String number) {
+    return '订单 #$number';
+  }
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hant`).
@@ -485,4 +605,64 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get dismiss => '關閉';
+
+  @override
+  String get failedToLoadProfile => '載入個人資料失敗。請下拉重新整理。';
+
+  @override
+  String get sessionExpiredMessage => '您的登入階段已過期，請重新登入。';
+
+  @override
+  String get failedToStartLogin => '開始登入失敗，請重試。';
+
+  @override
+  String failedToStartLoginError(String error) {
+    return '開始登入失敗：$error';
+  }
+
+  @override
+  String get signedOutSuccessfully => '已成功登出';
+
+  @override
+  String get signedOut => '已登出';
+
+  @override
+  String get couldNotOpenBrowser =>
+      '無法開啟瀏覽器，請前往 account.comfy-socks.com/profile';
+
+  @override
+  String get loadingYourAccount => '正在載入您的帳戶…';
+
+  @override
+  String get yourOrders => '您的訂單';
+
+  @override
+  String ordersCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count 個訂單',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get failedToLoadOrders => '載入訂單失敗，請重試。';
+
+  @override
+  String get noOrdersYet => '暫無訂單';
+
+  @override
+  String get noOrdersDescription => '下單後，訂單將顯示於此。';
+
+  @override
+  String get startShopping => '開始購物';
+
+  @override
+  String get orderDetailsComing => '訂單詳情即將推出';
+
+  @override
+  String orderNumber(String number) {
+    return '訂單 #$number';
+  }
 }

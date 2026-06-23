@@ -166,4 +166,67 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get dismiss => 'Close';
+
+  @override
+  String get failedToLoadProfile => 'Failed to load profile. Pull to refresh.';
+
+  @override
+  String get sessionExpiredMessage =>
+      'Your session has expired. Please sign in again.';
+
+  @override
+  String get failedToStartLogin => 'Failed to start login. Please try again.';
+
+  @override
+  String failedToStartLoginError(String error) {
+    return 'Failed to start login: $error';
+  }
+
+  @override
+  String get signedOutSuccessfully => 'Signed out successfully';
+
+  @override
+  String get signedOut => 'Signed out';
+
+  @override
+  String get couldNotOpenBrowser =>
+      'Could not open browser. Please visit account.comfy-socks.com/profile';
+
+  @override
+  String get loadingYourAccount => 'Loading your account...';
+
+  @override
+  String get yourOrders => 'Your Orders';
+
+  @override
+  String ordersCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count orders',
+      one: '1 order',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get failedToLoadOrders => 'Failed to load orders. Please try again.';
+
+  @override
+  String get noOrdersYet => 'No orders yet';
+
+  @override
+  String get noOrdersDescription =>
+      'When you place an order, it will appear here.';
+
+  @override
+  String get startShopping => 'Start Shopping';
+
+  @override
+  String get orderDetailsComing => 'Order details coming soon';
+
+  @override
+  String orderNumber(String number) {
+    return 'Order #$number';
+  }
 }

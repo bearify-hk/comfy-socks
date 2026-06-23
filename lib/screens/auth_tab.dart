@@ -5,6 +5,7 @@ import 'package:comfy_socks/services/locale_notifier.dart';
 import 'package:flutter/material.dart';
 import 'package:comfy_socks/services/shopify_customer_account_auth.dart';
 import 'package:comfy_socks/services/auth_notifier.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class CustomerAccountAuthTab extends StatefulWidget {
   const CustomerAccountAuthTab({super.key});
@@ -131,7 +132,7 @@ class _CustomerAccountAuthTabState extends State<CustomerAccountAuthTab> {
       } else {
         if (mounted) {
           setState(() {
-            _error = 'Failed to load profile. Pull to refresh.';
+            _error = AppLocalizations.of(context)!.failedToLoadProfile;
             _isLoading = false;
           });
         }
@@ -147,7 +148,7 @@ class _CustomerAccountAuthTabState extends State<CustomerAccountAuthTab> {
         _isLoading = false;
         _error = null;
       });
-      _showSnackbar('Your session has expired. Please sign in again.');
+      _showSnackbar(AppLocalizations.of(context)!.sessionExpiredMessage);
     }
   }
 
@@ -162,8 +163,8 @@ class _CustomerAccountAuthTabState extends State<CustomerAccountAuthTab> {
       // Note: The actual login completion happens via deep link callback
       // which triggers AuthNotifier.notifyAuthStateChanged()
     } catch (e) {
-      setState(() => _error = 'Failed to start login. Please try again.');
-      _showSnackbar('Failed to start login: $e');
+      setState(() => _error = AppLocalizations.of(context)!.failedToStartLogin);
+      _showSnackbar(AppLocalizations.of(context)!.failedToStartLoginError(e.toString()));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -202,7 +203,7 @@ class _CustomerAccountAuthTabState extends State<CustomerAccountAuthTab> {
         setState(() {
           _customer = null;
         });
-        _showSnackbar('Signed out successfully');
+        _showSnackbar(AppLocalizations.of(context)!.signedOutSuccessfully);
       }
     } catch (e) {
       log('Logout error: $e');
@@ -212,10 +213,17 @@ class _CustomerAccountAuthTabState extends State<CustomerAccountAuthTab> {
         setState(() {
           _customer = null;
         });
-        _showSnackbar('Signed out');
+        _showSnackbar(AppLocalizations.of(context)!.signedOut);
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _openProfileUrl() async {
+    final uri = Uri.parse('https://account.comfy-socks.com/profile');
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      _showSnackbar(AppLocalizations.of(context)!.couldNotOpenBrowser);
     }
   }
 
@@ -290,7 +298,7 @@ class _CustomerAccountAuthTabState extends State<CustomerAccountAuthTab> {
             children: [
               CircularProgressIndicator(),
               SizedBox(height: 16),
-              Text('Loading your account...'),
+              Text(AppLocalizations.of(context)!.loadingYourAccount),
             ],
           ),
         ),
@@ -606,6 +614,7 @@ class _CustomerAccountAuthTabState extends State<CustomerAccountAuthTab> {
                 subtitle: email.isNotEmpty
                     ? email
                     : AppLocalizations.of(context)!.notSet,
+                onTap: _openProfileUrl,
               ),
               const Divider(height: 1, indent: 56),
               _buildNativeListTile(
@@ -614,6 +623,7 @@ class _CustomerAccountAuthTabState extends State<CustomerAccountAuthTab> {
                 subtitle:
                     _customer?['defaultAddress']?['phoneNumber'] ??
                     AppLocalizations.of(context)!.notSet,
+                onTap: _openProfileUrl,
               ),
               const Divider(height: 1, indent: 56),
               _buildNativeListTile(
@@ -751,11 +761,14 @@ class _CustomerAccountAuthTabState extends State<CustomerAccountAuthTab> {
     required IconData icon,
     required String title,
     required String subtitle,
+    VoidCallback? onTap,
   }) {
     return ListTile(
       leading: Icon(icon),
       title: Text(title),
       subtitle: Text(subtitle, maxLines: 2, overflow: TextOverflow.ellipsis),
+      trailing: onTap != null ? const Icon(Icons.chevron_right) : null,
+      onTap: onTap,
       dense: false,
     );
   }
@@ -812,12 +825,12 @@ class _CustomerAccountAuthTabState extends State<CustomerAccountAuthTab> {
                   children: [
                     Expanded(
                       child: Text(
-                        'Your Orders',
+                        AppLocalizations.of(context)!.yourOrders,
                         style: Theme.of(context).textTheme.titleLarge,
                       ),
                     ),
                     Text(
-                      '${orders.length} order${orders.length == 1 ? '' : 's'}',
+                      AppLocalizations.of(context)!.ordersCount(orders.length),
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
@@ -848,7 +861,7 @@ class _CustomerAccountAuthTabState extends State<CustomerAccountAuthTab> {
           errorMessage.contains('unauthorized')) {
         await _handleSessionExpired();
       } else {
-        _showSnackbar('Failed to load orders. Please try again.');
+        _showSnackbar(AppLocalizations.of(context)!.failedToLoadOrders);
       }
     }
   }
@@ -864,10 +877,10 @@ class _CustomerAccountAuthTabState extends State<CustomerAccountAuthTab> {
             color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
           const SizedBox(height: 16),
-          Text('No orders yet', style: Theme.of(context).textTheme.titleMedium),
+          Text(AppLocalizations.of(context)!.noOrdersYet, style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 8),
           Text(
-            'When you place an order, it will appear here.',
+            AppLocalizations.of(context)!.noOrdersDescription,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
               color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
@@ -876,7 +889,7 @@ class _CustomerAccountAuthTabState extends State<CustomerAccountAuthTab> {
           const SizedBox(height: 24),
           FilledButton.tonal(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Start Shopping'),
+            child: Text(AppLocalizations.of(context)!.startShopping),
           ),
         ],
       ),
@@ -940,7 +953,7 @@ class _CustomerAccountAuthTabState extends State<CustomerAccountAuthTab> {
           clipBehavior: Clip.antiAlias,
           child: InkWell(
             onTap: () {
-              _showSnackbar('Order details coming soon');
+              _showSnackbar(AppLocalizations.of(context)!.orderDetailsComing);
             },
             child: Padding(
               padding: const EdgeInsets.all(16),
@@ -951,7 +964,7 @@ class _CustomerAccountAuthTabState extends State<CustomerAccountAuthTab> {
                     children: [
                       Expanded(
                         child: Text(
-                          'Order #${order['number']}',
+                          AppLocalizations.of(context)!.orderNumber(order['number'].toString()),
                           style: Theme.of(context).textTheme.titleMedium
                               ?.copyWith(fontWeight: FontWeight.bold),
                         ),
