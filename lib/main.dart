@@ -133,6 +133,13 @@ class MyHomePageState extends State<MyHomePage> {
   int _selectedIndex = 0;
   late AppLinks _appLinks;
 
+  // Guard against processing the same auth callback more than once.
+  // app_links can deliver the cold-start URI via BOTH getInitialLink() and
+  // uriLinkStream, which would otherwise try to redeem the (single-use) OAuth
+  // code twice — the second attempt fails and shows a false "login failed".
+  String? _lastHandledUri;
+  bool _isHandlingCallback = false;
+
   @override
   void initState() {
     super.initState();
@@ -156,6 +163,17 @@ class MyHomePageState extends State<MyHomePage> {
   Future<void> _processAuthRedirect(Uri uri) async {
     // Check if the link is your Shopify callback
     if (uri.host == 'callback' || uri.path.contains('callback')) {
+      // Skip duplicate deliveries of the same callback (getInitialLink +
+      // uriLinkStream can both fire for the same URI). The OAuth code is
+      // single-use, so re-processing would always fail and surface a false
+      // "login failed" error even though login already succeeded.
+      final uriString = uri.toString();
+      if (_isHandlingCallback || uriString == _lastHandledUri) {
+        return;
+      }
+      _isHandlingCallback = true;
+      _lastHandledUri = uriString;
+
       try {
         final auth = ShopifyCustomerAccountAuth.instance;
 
@@ -188,7 +206,14 @@ class MyHomePageState extends State<MyHomePage> {
           print("Auth Callback Error: $e");
         }
 
-        if (mounted) {
+        // Defensive guard: if the session is actually valid, the failure came
+        // from a redundant/late callback delivery — don't show a false error.
+        final isAuthenticated =
+            ShopifyCustomerAccountAuth.instance.isAuthenticated;
+
+        if (mounted && !isAuthenticated) {
+          // Allow a genuine retry after a real failure.
+          _lastHandledUri = null;
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(AppLocalizations.of(context)!.loginFailed),
@@ -197,6 +222,8 @@ class MyHomePageState extends State<MyHomePage> {
             ),
           );
         }
+      } finally {
+        _isHandlingCallback = false;
       }
     }
   }
