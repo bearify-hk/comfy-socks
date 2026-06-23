@@ -292,7 +292,7 @@ class _CustomerAccountAuthTabState extends State<CustomerAccountAuthTab> {
           title: Text(AppLocalizations.of(context)!.account),
           centerTitle: false,
         ),
-        body: const Center(
+        body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
