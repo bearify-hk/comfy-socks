@@ -3,6 +3,7 @@ import 'dart:developer';
 import 'package:comfy_socks/l10n/app_localizations.dart';
 import 'package:comfy_socks/services/locale_notifier.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:comfy_socks/services/shopify_customer_account_auth.dart';
 import 'package:comfy_socks/services/auth_notifier.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -159,12 +160,43 @@ class _CustomerAccountAuthTabState extends State<CustomerAccountAuthTab> {
     });
 
     try {
+      // Opens the Shopify login page in an in-app browser session
+      // (ASWebAuthenticationSession on iOS / Custom Tabs on Android) and
+      // completes the token exchange before returning. No deep-link
+      // round-trip is needed anymore.
       await _auth.launchAuthorization();
-      // Note: The actual login completion happens via deep link callback
-      // which triggers AuthNotifier.notifyAuthStateChanged()
+
+      // Session is now established — refresh app-wide auth state, which
+      // triggers _onAuthStateChanged to load the customer profile.
+      await AuthNotifier.instance.notifyAuthStateChanged();
+
+      if (mounted) {
+        _showSnackbar(
+          AppLocalizations.of(context)!.welcomeBack(
+            _auth.customerEmail ?? AppLocalizations.of(context)!.customer,
+          ),
+        );
+      }
+    } on PlatformException catch (e) {
+      // The user dismissed the login sheet — not an error, abort quietly.
+      if (e.code == 'CANCELED') return;
+      if (mounted) {
+        setState(
+          () => _error = AppLocalizations.of(context)!.failedToStartLogin,
+        );
+        _showSnackbar(
+          AppLocalizations.of(context)!.failedToStartLoginError(e.toString()),
+        );
+      }
     } catch (e) {
-      setState(() => _error = AppLocalizations.of(context)!.failedToStartLogin);
-      _showSnackbar(AppLocalizations.of(context)!.failedToStartLoginError(e.toString()));
+      if (mounted) {
+        setState(
+          () => _error = AppLocalizations.of(context)!.failedToStartLogin,
+        );
+        _showSnackbar(
+          AppLocalizations.of(context)!.failedToStartLoginError(e.toString()),
+        );
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -222,7 +254,9 @@ class _CustomerAccountAuthTabState extends State<CustomerAccountAuthTab> {
 
   Future<void> _openProfileUrl() async {
     final uri = Uri.parse('https://account.comfy-socks.com/profile');
-    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+    // Open inside the app (SFSafariViewController / Custom Tabs) rather than
+    // kicking the user out to the default browser.
+    if (!await launchUrl(uri, mode: LaunchMode.inAppBrowserView)) {
       _showSnackbar(AppLocalizations.of(context)!.couldNotOpenBrowser);
     }
   }

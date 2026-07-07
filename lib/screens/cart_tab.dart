@@ -213,10 +213,9 @@ class _CartTabState extends State<CartTab> {
     if (await canLaunchUrl(authenticatedUri)) {
       await launchUrl(
         authenticatedUri,
-        // Note: If you want to clear browser cookies entirely,
-        // the user must manually sign out of the browser,
-        // but dropping the Cart ID (Fix #1) usually solves the "Pre-filled info" issue.
-        mode: LaunchMode.externalApplication,
+        // Keep checkout inside the app (SFSafariViewController on iOS /
+        // Custom Tabs on Android) instead of the default external browser.
+        mode: LaunchMode.inAppBrowserView,
       );
     } else {
       throw 'Could not launch $authenticatedUri';

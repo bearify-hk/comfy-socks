@@ -5,7 +5,7 @@ import 'dart:math';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter_web_auth_2/flutter_web_auth_2.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 /// Shopify Service handling Authentication (Customer Account API)
@@ -276,17 +276,31 @@ class ShopifyCustomerAccountAuth extends ChangeNotifier {
     );
   }
 
+  /// Launch the Shopify login page inside the app and complete the flow.
+  ///
+  /// Uses [FlutterWebAuth2], which presents an `ASWebAuthenticationSession`
+  /// on iOS and a Chrome Custom Tab on Android — the user never leaves the
+  /// app to the default browser. The redirect back to [redirectUri] is
+  /// captured directly (no external deep-link handling needed), and the code
+  /// is exchanged for tokens before this method returns.
+  ///
+  /// Throws if the user cancels the session or if authorization fails.
   Future<void> launchAuthorization({String? locale}) async {
     final authUrl = await getAuthorizationUrl(locale: locale);
     await _secureStorage.write(key: 'code_verifier', value: _codeVerifier);
     await _secureStorage.write(key: 'auth_state', value: _state);
     await _secureStorage.write(key: 'auth_nonce', value: _nonce);
 
-    if (await canLaunchUrl(authUrl)) {
-      await launchUrl(authUrl, mode: LaunchMode.externalApplication);
-    } else {
-      throw Exception('Could not launch authorization URL');
-    }
+    // The callback scheme is the scheme portion of the redirect URI,
+    // e.g. "shop.73507635488.comfysocks://callback" -> "shop.73507635488.comfysocks".
+    final callbackScheme = Uri.parse(redirectUri).scheme;
+
+    final resultUrl = await FlutterWebAuth2.authenticate(
+      url: authUrl.toString(),
+      callbackUrlScheme: callbackScheme,
+    );
+
+    await handleCallback(Uri.parse(resultUrl));
   }
 
   Future<void> handleCallback(Uri callbackUri) async {

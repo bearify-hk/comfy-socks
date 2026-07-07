@@ -1,5 +1,4 @@
 // main.dart
-import 'package:app_links/app_links.dart';
 import 'package:comfy_socks/screens/auth_tab.dart';
 import 'package:comfy_socks/screens/blog_tab.dart';
 import 'package:comfy_socks/screens/cart_tab.dart';
@@ -7,7 +6,6 @@ import 'package:comfy_socks/screens/collection_tab.dart';
 import 'package:comfy_socks/services/auth_notifier.dart';
 import 'package:comfy_socks/services/locale_notifier.dart';
 import 'package:comfy_socks/services/shopify_customer_account_auth.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:shopify_flutter/shopify_flutter.dart';
@@ -131,102 +129,10 @@ class MyHomePage extends StatefulWidget {
 
 class MyHomePageState extends State<MyHomePage> {
   int _selectedIndex = 0;
-  late AppLinks _appLinks;
 
-  // Guard against processing the same auth callback more than once.
-  // app_links can deliver the cold-start URI via BOTH getInitialLink() and
-  // uriLinkStream, which would otherwise try to redeem the (single-use) OAuth
-  // code twice — the second attempt fails and shows a false "login failed".
-  String? _lastHandledUri;
-  bool _isHandlingCallback = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _initDeepLinks();
-  }
-
-  void _initDeepLinks() {
-    _appLinks = AppLinks();
-
-    // 1. Handle links when the app is already open (Background/Foreground)
-    _appLinks.uriLinkStream.listen((uri) {
-      _processAuthRedirect(uri);
-    });
-
-    // 2. Handle the link if the app was completely closed
-    _appLinks.getInitialLink().then((uri) {
-      if (uri != null) _processAuthRedirect(uri);
-    });
-  }
-
-  Future<void> _processAuthRedirect(Uri uri) async {
-    // Check if the link is your Shopify callback
-    if (uri.host == 'callback' || uri.path.contains('callback')) {
-      // Skip duplicate deliveries of the same callback (getInitialLink +
-      // uriLinkStream can both fire for the same URI). The OAuth code is
-      // single-use, so re-processing would always fail and surface a false
-      // "login failed" error even though login already succeeded.
-      final uriString = uri.toString();
-      if (_isHandlingCallback || uriString == _lastHandledUri) {
-        return;
-      }
-      _isHandlingCallback = true;
-      _lastHandledUri = uriString;
-
-      try {
-        final auth = ShopifyCustomerAccountAuth.instance;
-
-        // Exchange the 'code' for tokens
-        await auth.handleCallback(uri);
-
-        // Notify the UI that the auth state has changed
-        await AuthNotifier.instance.notifyAuthStateChanged();
-
-        if (kDebugMode) {
-          print("Login Successful! Customer: ${auth.customerEmail}");
-        }
-
-        // Show success message
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                AppLocalizations.of(context)!.welcomeBack(
-                  auth.customerEmail ?? AppLocalizations.of(context)!.customer,
-                ),
-              ),
-              behavior: SnackBarBehavior.floating,
-              backgroundColor: Colors.green,
-            ),
-          );
-        }
-      } catch (e) {
-        if (kDebugMode) {
-          print("Auth Callback Error: $e");
-        }
-
-        // Defensive guard: if the session is actually valid, the failure came
-        // from a redundant/late callback delivery — don't show a false error.
-        final isAuthenticated =
-            ShopifyCustomerAccountAuth.instance.isAuthenticated;
-
-        if (mounted && !isAuthenticated) {
-          // Allow a genuine retry after a real failure.
-          _lastHandledUri = null;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(AppLocalizations.of(context)!.loginFailed),
-              behavior: SnackBarBehavior.floating,
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-      } finally {
-        _isHandlingCallback = false;
-      }
-    }
-  }
+  // Note: OAuth login no longer relies on deep-link callbacks. The in-app
+  // authentication session (see ShopifyCustomerAccountAuth.launchAuthorization)
+  // captures the redirect and exchanges the code inline.
 
   List<Widget> tabs = [
     const HomeTab(),

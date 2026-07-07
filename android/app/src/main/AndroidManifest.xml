@@ -25,14 +25,18 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+        </activity>
 
-            <intent-filter>
+        <!-- Captures the OAuth redirect for flutter_web_auth_2 (in-app login).
+             Replaces the old app_links callback intent-filter on MainActivity. -->
+        <activity
+            android:name="com.linusu.flutter_web_auth_2.CallbackActivity"
+            android:exported="true">
+            <intent-filter android:label="flutter_web_auth_2">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data
-                    android:scheme="shop.73507635488.comfysocks"
-                    android:host="callback" />
+                <data android:scheme="shop.73507635488.comfysocks" />
             </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.
