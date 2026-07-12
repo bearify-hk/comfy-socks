@@ -418,6 +418,36 @@ abstract class AppLocalizations {
   /// **'Could not open browser. Please visit account.comfy-socks.com/profile'**
   String get couldNotOpenBrowser;
 
+  /// No description provided for @deleteAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete Account'**
+  String get deleteAccount;
+
+  /// No description provided for @deleteAccountDialogTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete Account?'**
+  String get deleteAccountDialogTitle;
+
+  /// No description provided for @deleteAccountDialogBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Your sign-in is managed by Shop. You\'ll be taken to Shop to permanently delete your account and personal data. This can\'t be undone, and you\'ll be signed out of this app.'**
+  String get deleteAccountDialogBody;
+
+  /// No description provided for @deleteAccountContinue.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue'**
+  String get deleteAccountContinue;
+
+  /// No description provided for @deleteAccountRedirectMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'You\'ve been signed out. Finish deleting your account in the page that opened.'**
+  String get deleteAccountRedirectMessage;
+
   /// No description provided for @loadingYourAccount.
   ///
   /// In en, this message translates to:

@@ -193,6 +193,23 @@ class AppLocalizationsEn extends AppLocalizations {
       'Could not open browser. Please visit account.comfy-socks.com/profile';
 
   @override
+  String get deleteAccount => 'Delete Account';
+
+  @override
+  String get deleteAccountDialogTitle => 'Delete Account?';
+
+  @override
+  String get deleteAccountDialogBody =>
+      'Your sign-in is managed by Shop. You\'ll be taken to Shop to permanently delete your account and personal data. This can\'t be undone, and you\'ll be signed out of this app.';
+
+  @override
+  String get deleteAccountContinue => 'Continue';
+
+  @override
+  String get deleteAccountRedirectMessage =>
+      'You\'ve been signed out. Finish deleting your account in the page that opened.';
+
+  @override
   String get loadingYourAccount => 'Loading your account...';
 
   @override

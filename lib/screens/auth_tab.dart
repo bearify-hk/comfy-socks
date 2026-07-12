@@ -252,6 +252,52 @@ class _CustomerAccountAuthTabState extends State<CustomerAccountAuthTab> {
     }
   }
 
+  /// Account deletion. Sign-in is managed by Shop (Shopify Customer Accounts),
+  /// so account/data deletion is completed on Shop's hosted page. We open it in
+  /// an in-app browser and then clear the local session so the app no longer
+  /// shows a signed-in state.
+  Future<void> _deleteAccount() async {
+    final l10n = AppLocalizations.of(context)!;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(l10n.deleteAccountDialogTitle),
+        content: Text(l10n.deleteAccountDialogBody),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text(l10n.cancel),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text(l10n.deleteAccountContinue),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    final uri = Uri.parse('https://shop.app/delete-account');
+    final opened = await launchUrl(uri, mode: LaunchMode.inAppBrowserView);
+    if (!opened) {
+      _showSnackbar(l10n.couldNotOpenBrowser);
+      return;
+    }
+
+    // The user has initiated deletion on Shop's page — clear the local session
+    // so the app reflects a signed-out state on return.
+    await AuthNotifier.instance.silentLogout();
+    if (mounted) {
+      setState(() => _customer = null);
+      _showSnackbar(l10n.deleteAccountRedirectMessage);
+    }
+  }
+
   Future<void> _openProfileUrl() async {
     final uri = Uri.parse('https://account.comfy-socks.com/profile');
     // Open inside the app (SFSafariViewController / Custom Tabs) rather than
@@ -722,7 +768,15 @@ class _CustomerAccountAuthTabState extends State<CustomerAccountAuthTab> {
                 )
               : const Icon(Icons.logout),
           label: Text(AppLocalizations.of(context)!.signOut),
+          style: TextButton.styleFrom(foregroundColor: colorScheme.onSurfaceVariant),
+        ),
+
+        // Delete account — required by App Store review (Guideline 5.1.1(v)).
+        // Sign-in is managed by Shop, so deletion is completed on Shop's page.
+        TextButton(
+          onPressed: _isLoading ? null : _deleteAccount,
           style: TextButton.styleFrom(foregroundColor: colorScheme.error),
+          child: Text(AppLocalizations.of(context)!.deleteAccount),
         ),
         const SizedBox(height: 16),
       ],

@@ -189,6 +189,22 @@ class AppLocalizationsZh extends AppLocalizations {
       '無法開啟瀏覽器，請前往 account.comfy-socks.com/profile';
 
   @override
+  String get deleteAccount => '刪除帳戶';
+
+  @override
+  String get deleteAccountDialogTitle => '刪除帳戶？';
+
+  @override
+  String get deleteAccountDialogBody =>
+      '您的登入由 Shop 管理。我們將帶您前往 Shop 永久刪除您的帳戶及個人資料。此操作無法復原，並且您將登出本應用程式。';
+
+  @override
+  String get deleteAccountContinue => '繼續';
+
+  @override
+  String get deleteAccountRedirectMessage => '您已登出。請在開啟的頁面中完成帳戶刪除。';
+
+  @override
   String get loadingYourAccount => '正在載入您的帳戶…';
 
   @override
@@ -410,6 +426,22 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
       '无法打开浏览器，请前往 account.comfy-socks.com/profile';
 
   @override
+  String get deleteAccount => '删除账户';
+
+  @override
+  String get deleteAccountDialogTitle => '删除账户？';
+
+  @override
+  String get deleteAccountDialogBody =>
+      '您的登录由 Shop 管理。我们将带您前往 Shop 永久删除您的账户及个人资料。此操作无法撤销，并且您将退出本应用。';
+
+  @override
+  String get deleteAccountContinue => '继续';
+
+  @override
+  String get deleteAccountRedirectMessage => '您已退出登录。请在打开的页面中完成账户删除。';
+
+  @override
   String get loadingYourAccount => '正在载入您的帐户…';
 
   @override
@@ -629,6 +661,22 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   @override
   String get couldNotOpenBrowser =>
       '無法開啟瀏覽器，請前往 account.comfy-socks.com/profile';
+
+  @override
+  String get deleteAccount => '刪除帳戶';
+
+  @override
+  String get deleteAccountDialogTitle => '刪除帳戶？';
+
+  @override
+  String get deleteAccountDialogBody =>
+      '您的登入由 Shop 管理。我們將帶您前往 Shop 永久刪除您的帳戶及個人資料。此操作無法復原，並且您將登出本應用程式。';
+
+  @override
+  String get deleteAccountContinue => '繼續';
+
+  @override
+  String get deleteAccountRedirectMessage => '您已登出。請在開啟的頁面中完成帳戶刪除。';
 
   @override
   String get loadingYourAccount => '正在載入您的帳戶…';
